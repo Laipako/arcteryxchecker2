@@ -686,7 +686,9 @@ def show_favorites_tab():
 
         with col2:
             # 修改显示格式，与产品详情页保持一致
-            st.write(f"**{favorite['exact_model']} - {favorite['year_info']}**")
+            exact_model = favorite.get('exact_model', favorite.get('product_model', '未知型号'))
+            year_info = favorite.get('year_info', '未知年份')
+            st.write(f"*{exact_model} - {year_info}*")
             st.write(f"**颜色:** {favorite['color']} | **尺码:** {favorite['size']}")
 
             # 价格显示（韩元 + 人民币）
