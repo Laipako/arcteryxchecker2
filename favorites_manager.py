@@ -1,48 +1,35 @@
-# favorites_manager.py - 修复权限错误的版本
+# favorites_manager.py - 最终修复版本
 import json
 import os
 from datetime import datetime
 from utils import is_duplicate
 
-# ✅ 使用相对路径，避免权限问题
-PERSISTENT_FILE = "persistent_data/favorites.json"
-
-
-def ensure_data_directory():
-    """确保数据目录存在"""
-    try:
-        os.makedirs(os.path.dirname(PERSISTENT_FILE), exist_ok=True)
-        return True
-    except Exception as e:
-        print(f"目录创建失败: {e}")
-        # 如果创建目录失败，直接使用当前目录
-        global PERSISTENT_FILE
-        PERSISTENT_FILE = "favorites.json"
-        return True
+# ✅ 直接使用当前目录的文件
+PERSISTENT_FILE = "favorites.json"
 
 
 def load_favorites():
     """加载收藏列表"""
-    ensure_data_directory()  # 确保目录存在
     try:
         if os.path.exists(PERSISTENT_FILE):
             with open(PERSISTENT_FILE, 'r', encoding='utf-8') as f:
                 data = json.load(f)
+                print(f"✅ 成功加载 {len(data)} 条收藏记录")
                 return data
     except Exception as e:
-        print(f"加载收藏数据失败: {e}")
+        print(f"❌ 加载收藏数据失败: {e}")
     return []
 
 
 def save_favorites(favorites):
     """保存收藏列表"""
-    ensure_data_directory()  # 确保目录存在
     try:
         with open(PERSISTENT_FILE, 'w', encoding='utf-8') as f:
             json.dump(favorites, f, ensure_ascii=False, indent=2)
+        print(f"✅ 成功保存 {len(favorites)} 条收藏记录")
         return True
     except Exception as e:
-        print(f"保存收藏数据失败: {e}")
+        print(f"❌ 保存收藏数据失败: {e}")
         return False
 
 
@@ -65,7 +52,7 @@ def add_to_favorites(product_info):
             return False, "保存数据失败"
 
     except Exception as e:
-        print(f"添加到收藏失败: {e}")
+        print(f"❌ 添加到收藏失败: {e}")
         return False, f"添加到收藏失败: {str(e)}"
 
 
