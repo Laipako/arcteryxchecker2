@@ -1,35 +1,42 @@
-# favorites_manager.py - 完整修改后的代码
+# favorites_manager.py - 修复权限错误的版本
 import json
 import os
 from datetime import datetime
 from utils import is_duplicate
 
-# ⚠️⚠️⚠️ 修改点1：更改持久化文件路径
-# 原代码：FAVORITES_FILE = "data/favorites.json"
-# 新代码：使用Streamlit Cloud的持久化存储路径
-PERSISTENT_FILE = "/app/streamlit-data/favorites.json"
+# ✅ 使用相对路径，避免权限问题
+PERSISTENT_FILE = "persistent_data/favorites.json"
 
 
 def ensure_data_directory():
     """确保数据目录存在"""
-    os.makedirs(os.path.dirname(PERSISTENT_FILE), exist_ok=True)
+    try:
+        os.makedirs(os.path.dirname(PERSISTENT_FILE), exist_ok=True)
+        return True
+    except Exception as e:
+        print(f"目录创建失败: {e}")
+        # 如果创建目录失败，直接使用当前目录
+        global PERSISTENT_FILE
+        PERSISTENT_FILE = "favorites.json"
+        return True
 
 
 def load_favorites():
     """加载收藏列表"""
-    ensure_data_directory()
+    ensure_data_directory()  # 确保目录存在
     try:
         if os.path.exists(PERSISTENT_FILE):
             with open(PERSISTENT_FILE, 'r', encoding='utf-8') as f:
-                return json.load(f)
-    except (json.JSONDecodeError, FileNotFoundError) as e:
+                data = json.load(f)
+                return data
+    except Exception as e:
         print(f"加载收藏数据失败: {e}")
     return []
 
 
 def save_favorites(favorites):
     """保存收藏列表"""
-    ensure_data_directory()
+    ensure_data_directory()  # 确保目录存在
     try:
         with open(PERSISTENT_FILE, 'w', encoding='utf-8') as f:
             json.dump(favorites, f, ensure_ascii=False, indent=2)
@@ -39,21 +46,19 @@ def save_favorites(favorites):
         return False
 
 
+# 以下函数保持不变
 def add_to_favorites(product_info):
     """添加产品到收藏"""
     try:
         favorites = load_favorites()
 
-        # 检查是否重复
         if is_duplicate(favorites, product_info):
             return False, "该产品已存在于收藏中"
 
-        # 添加时间戳
         product_info['added_time'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        product_info['image_url'] = product_info.get('image_url', '')  # 新增图片URL字段
+        product_info['image_url'] = product_info.get('image_url', '')
         favorites.append(product_info)
 
-        # ⚠️⚠️⚠️ 修改点2：使用新的保存函数
         if save_favorites(favorites):
             return True, "成功添加到收藏"
         else:
@@ -69,7 +74,6 @@ def remove_from_favorites(index):
     favorites = load_favorites()
     if 0 <= index < len(favorites):
         removed_item = favorites.pop(index)
-        # ⚠️⚠️⚠️ 修改点3：使用新的保存函数
         if save_favorites(favorites):
             return True, f"已移除: {removed_item['product_model']} {removed_item['color']} {removed_item['size']}"
         else:
@@ -79,7 +83,6 @@ def remove_from_favorites(index):
 
 def clear_favorites():
     """清空收藏列表"""
-    # ⚠️⚠️⚠️ 修改点4：使用新的保存函数
     if save_favorites([]):
         return True, "已清空收藏列表"
     else:
