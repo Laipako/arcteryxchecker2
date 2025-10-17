@@ -15,10 +15,10 @@ class SupabaseManager:
     def init_client(self):
         """初始化Supabase客户端"""
         try:
-            # self.url = st.secrets["SUPABASE_URL"]
-            self.url = 'https://kmsebovqoemcenedwfbi.supabase.co'
-            # self.key = st.secrets["SUPABASE_KEY"]
-            self.key = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imttc2Vib3Zxb2VtY2VuZWR3ZmJpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA2Nzk4NzMsImV4cCI6MjA3NjI1NTg3M30.PSzlSbwuoDBUyFoZUCXH3jG_V78wzf7YjDk4ynk43Qk'
+            self.url = st.secrets["SUPABASE_URL"]
+            # self.url = 'https://kmsebovqoemcenedwfbi.supabase.co'
+            self.key = st.secrets["SUPABASE_KEY"]
+            # self.key = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imttc2Vib3Zxb2VtY2VuZWR3ZmJpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA2Nzk4NzMsImV4cCI6MjA3NjI1NTg3M30.PSzlSbwuoDBUyFoZUCXH3jG_V78wzf7YjDk4ynk43Qk'
             self.client: Client = create_client(self.url, self.key)
         except Exception as e:
             print(f"❌❌ Supabase 客户端初始化失败: {e}")
@@ -34,3 +34,4 @@ class SupabaseManager:
 # 创建全局Supabase管理器实例
 
 supabase_manager = SupabaseManager()
+
