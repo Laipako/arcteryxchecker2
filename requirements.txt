@@ -6,3 +6,4 @@ openpyxl>=3.0.0
 beautifulsoup4>=4.11.0
 pymongo>=4.0
 dnspython>=2.0
+supabase==2.3.0
