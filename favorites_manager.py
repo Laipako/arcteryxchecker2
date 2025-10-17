@@ -1,152 +1,95 @@
-# favorites_manager.py - 完整修改版
+# favorites_manager.py
 import json
 import os
 from datetime import datetime
 from utils import is_duplicate
-
-# ✅ 使用相对路径，避免权限问题
-PERSISTENT_FILE = "favorites.json"
+from database import db_manager
+from pymongo.errors import PyMongoError
 
 
 def load_favorites():
-    """加载收藏列表（增强容错性）"""
+    """从 MongoDB 加载所有收藏产品"""
     try:
-        if not os.path.exists(PERSISTENT_FILE):
-            return []
+        collection = db_manager.get_collection()
+        favorites = list(collection.find({}).sort("added_time", -1))
 
-        with open(PERSISTENT_FILE, 'r', encoding='utf-8') as f:
-            favorites = json.load(f)
+        # 转换 MongoDB 的 _id 字段
+        for fav in favorites:
+            fav['id'] = str(fav['_id'])
+            del fav['_id']
 
-        # 验证数据格式
-        if not isinstance(favorites, list):
-            print("❌❌ 收藏数据格式错误，重置为空列表")
-            return []
-
-        # 安全修复数据
-        return repair_incomplete_favorites(favorites) if favorites else []
+        return favorites
 
     except Exception as e:
-        print(f"❌❌ 加载收藏数据失败: {e}")
-        return []  # 确保返回空列表而不是None
-
-def save_favorites(favorites):
-    """保存收藏列表"""
-    try:
-        with open(PERSISTENT_FILE, 'w', encoding='utf-8') as f:
-            json.dump(favorites, f, ensure_ascii=False, indent=2)
-        print(f"✅ 成功保存 {len(favorites)} 条收藏记录")
-        return True
-    except Exception as e:
-        print(f"❌ 保存收藏数据失败: {e}")
-        return False
+        print(f"❌ 从数据库加载收藏失败: {e}")
+        return []
 
 
-# ⚠️⚠️⚠️ 修改点2：新增数据完整性修复函数
-def repair_incomplete_favorites(favorites):
-    """修复已保存的不完整收藏数据"""
-    repaired_count = 0
-
-    for favorite in favorites:
-        if not isinstance(favorite, dict):
-            continue  # 跳过无效条目
-        # 修复 exact_model 字段
-        if 'exact_model' not in favorite:
-            favorite['exact_model'] = favorite.get('product_model', '未知型号')
-            repaired_count += 1
-
-        # 修复 year_info 字段
-        if 'year_info' not in favorite:
-            favorite['year_info'] = '未知年份'
-            repaired_count += 1
-
-        # 修复 china_price_cny 字段
-        if 'china_price_cny' not in favorite:
-            favorite['china_price_cny'] = None
-            repaired_count += 1
-
-        # 修复 image_url 字段
-        if 'image_url' not in favorite:
-            favorite['image_url'] = ''
-            repaired_count += 1
-
-        # 修复 discount_rate 字段
-        if 'discount_rate' not in favorite:
-            favorite['discount_rate'] = '暂无'
-            repaired_count += 1
-
-        # 修复 added_time 字段
-        if 'added_time' not in favorite:
-            favorite['added_time'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            repaired_count += 1
-
-    if repaired_count > 0:
-        print(f"✅ 修复了 {repaired_count} 条不完整数据")
-        save_favorites(favorites)  # 保存修复后的数据
-
-    return favorites
-
-
-# ⚠️⚠️⚠️ 修改点3：增强 add_to_favorites 函数
 def add_to_favorites(product_info):
-    """添加产品到收藏（增强版）"""
+    """添加产品到 MongoDB 收藏"""
     try:
-        # 确保数据完整性
-        product_info = ensure_product_info_complete(product_info)
-
-        favorites = load_favorites()
-
-        if is_duplicate(favorites, product_info):
+        # 检查是否重复
+        existing_favorites = load_favorites()
+        if is_duplicate(existing_favorites, product_info):
             return False, "该产品已存在于收藏中"
 
-        # 添加时间戳
-        product_info['added_time'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        favorites.append(product_info)
+        # 准备插入数据
+        product_doc = {
+            "product_model": product_info["product_model"],
+            "exact_model": product_info["exact_model"],
+            "year_info": product_info["year_info"],
+            "color": product_info["color"],
+            "size": product_info["size"],
+            "price": product_info["price"],
+            "korea_price_cny": product_info["korea_price_cny"],
+            "china_price_cny": product_info["china_price_cny"],
+            "discount_rate": product_info["discount_rate"],
+            "sku": product_info["sku"],
+            "image_url": product_info["image_url"],
+            "added_time": datetime.now()
+        }
 
-        if save_favorites(favorites):
+        # 插入数据库
+        collection = db_manager.get_collection()
+        result = collection.insert_one(product_doc)
+
+        if result.inserted_id:
             return True, "成功添加到收藏"
         else:
-            return False, "保存数据失败"
+            return False, "添加到数据库失败"
 
     except Exception as e:
         print(f"❌ 添加到收藏失败: {e}")
         return False, f"添加到收藏失败: {str(e)}"
 
 
-# ⚠️⚠️⚠️ 修改点4：新增数据完整性验证函数
-def ensure_product_info_complete(product_info):
-    """确保产品信息完整"""
-    required_fields = {
-        'exact_model': product_info.get('product_model', '未知型号'),
-        'year_info': product_info.get('year_info', '未知年份'),
-        'china_price_cny': product_info.get('china_price_cny'),
-        'image_url': product_info.get('image_url', ''),
-        'discount_rate': product_info.get('discount_rate', '暂无'),
-        'added_time': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    }
-
-    for field, default_value in required_fields.items():
-        if field not in product_info:
-            product_info[field] = default_value
-
-    return product_info
-
-
-# 以下函数保持不变
 def remove_from_favorites(index):
-    """从收藏中移除产品"""
-    favorites = load_favorites()
-    if 0 <= index < len(favorites):
-        removed_item = favorites.pop(index)
-        if save_favorites(favorites):
-            return True, f"已移除: {removed_item['product_model']} {removed_item['color']} {removed_item['size']}"
+    """根据索引从收藏中移除产品"""
+    try:
+        favorites = load_favorites()
+        if 0 <= index < len(favorites):
+            sku_to_remove = favorites[index]['sku']
+            collection = db_manager.get_collection()
+            result = collection.delete_one({"sku": sku_to_remove})
+
+            if result.deleted_count > 0:
+                return True, f"已从收藏中移除"
+            else:
+                return False, "删除失败，未找到对应记录"
         else:
-            return False, "保存数据失败"
-    return False, "索引超出范围"
+            return False, "索引超出范围"
+
+    except Exception as e:
+        print(f"❌ 从收藏移除失败: {e}")
+        return False, f"数据库错误: {str(e)}"
 
 
 def clear_favorites():
-    """清空收藏列表"""
-    if save_favorites([]):
-        return True, "已清空收藏列表"
-    else:
-        return False, "清空数据失败"
+    """清空收藏集合"""
+    try:
+        collection = db_manager.get_collection()
+        result = collection.delete_many({})
+        return True, f"已清空收藏列表，删除了 {result.deleted_count} 条记录"
+    except Exception as e:
+        print(f"❌ 清空收藏失败: {e}")
+        return False, f"清空失败: {str(e)}"
