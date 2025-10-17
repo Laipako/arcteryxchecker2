@@ -626,7 +626,16 @@ def convert_krw_to_cny(krw_amount):
 
 def show_favorites_tab():
     """显示收藏产品标签页"""
+    # 数据备份机制
+    if "favorites_backup" not in st.session_state:
+        st.session_state.favorites_backup = None
 
+    # 在关键操作前备份数据
+    try:
+        favorites = load_favorites()
+        st.session_state.favorites_backup = favorites.copy()  # 备份
+    except:
+        favorites = st.session_state.get("favorites_backup", [])
     # 初始化session_state（在函数内部）
     if "inventory_queried" not in st.session_state:
         st.session_state.inventory_queried = False
