@@ -1,6 +1,7 @@
 import requests
 import json
 from urllib.parse import quote
+import streamlit as st
 
 def generate_api_url(product_model, gender="MALE", page=1, display_size=16):
     """生成API请求URL"""
@@ -20,8 +21,9 @@ def generate_api_url(product_model, gender="MALE", page=1, display_size=16):
     query_string = "&".join([f"{k}={v}" for k, v in params.items()])
     return f"{base_url}?{query_string}"
 
+@st.cache_data(ttl=3600)
 def extract_product_ids_from_api(api_url):
-    """从API响应中提取产品ID"""
+    """从API响应中提取产品ID（支持缓存）"""
     try:
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",

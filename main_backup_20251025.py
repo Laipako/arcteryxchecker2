@@ -252,7 +252,7 @@ def show_product_selection():
         with st.expander(f"🎯🎯 产品 {i + 1}: {product['exact_model']}", expanded=(i == 0)):
 
             # 优化：使用列布局显示产品信息
-            col_info, col_action = st.columns([3, 1], gap="small")
+            col_info, col_action = st.columns([3, 1])
 
             with col_info:
                 # 保留原有显示格式，但优化布局
@@ -326,7 +326,7 @@ def show_color_selection():
         st.session_state.selected_color = ""
 
     # 2. 回退按钮
-    col1, col2 = st.columns([1, 3], gap="small")
+    col1, col2 = st.columns([1, 3])
     with col1:
         if st.button("← 返回产品选择", key="back_to_product"):
             go_back()
@@ -351,7 +351,7 @@ def show_color_selection():
     color_names = [color["name"] for color in color_options]
 
     # 5. 创建两列布局：左侧radio选择，右侧色块显示
-    col_left, col_right = st.columns([1, 6], gap="small")
+    col_left, col_right = st.columns([1, 6])
 
     with col_left:
         # 创建radio控件（独立于循环之外）
@@ -413,7 +413,7 @@ def show_size_selection():
     if not size_options:
         st.error("无法获取尺码选项")
         return
-    col1, col2 = st.columns([1, 3], gap="small")
+    col1, col2 = st.columns([1, 3])
     with col1:
         if st.button("← 返回颜色选择", key="back_to_color"):
             go_back()
@@ -423,7 +423,7 @@ def show_size_selection():
     # 尺码选项和确认按钮之间留出间距
     st.write("")  # 空行增加间距
     # 确认按钮与回退按钮并排
-    col1, col2 = st.columns(2, gap="small")
+    col1, col2 = st.columns(2)
     with col1:
         if st.button("确认尺码", key="confirm_size"):
             st.session_state.selected_size = selected_size
@@ -477,7 +477,7 @@ def show_product_details():
     st.session_state.product_image_url = image_url
 
     # 使用两列布局：图片在左，信息在右
-    col1, col2 = st.columns([1, 2], gap="small")
+    col1, col2 = st.columns([1, 2])
 
     with col1:
         st.subheader("产品图片")
@@ -629,25 +629,7 @@ def convert_krw_to_cny(krw_amount):
 
 
 def show_favorites_tab():
-    """展示收藏产品列表"""
-    # 移动端自适应检测和CSS优化
-    st.markdown("""
-    <style>
-    @media (max-width: 768px) {
-        /* 移动端优化 */
-        .element-container { margin: 0.2rem 0 !important; }
-        [data-testid="column"] { gap: 0.2rem !important; }
-        [data-testid="stVerticalBlock"] { gap: 0.3rem !important; }
-    }
-    @media (max-width: 480px) {
-        /* 超小屏幕优化 */
-        .element-container { margin: 0.1rem 0 !important; }
-        [data-testid="column"] { gap: 0rem !important; }
-        .st-emotion-cache-uc5rjx { padding: 0.5rem !important; }
-    }
-    </style>
-    """, unsafe_allow_html=True)
-    
+    """显示收藏产品标签页"""
     # 数据备份机制
     if "favorites_backup" not in st.session_state:
         st.session_state.favorites_backup = None
@@ -695,8 +677,8 @@ def show_favorites_tab():
 
     # 显示收藏列表（每个产品前添加复选框）
     for i, favorite in enumerate(favorites):
-        # 响应式布局：PC端5列，移动端3列
-        col1, col2, col3, col4, col5 = st.columns([0.4, 3.5, 1.2, 0.8, 0.8], gap="small")
+        # 使用5列布局，第一列为复选框
+        col1, col2, col3, col4, col5 = st.columns([1, 3, 3, 1, 1])
 
         with col1:
             # 复选框 - 管理选中状态
@@ -716,48 +698,47 @@ def show_favorites_tab():
                 st.rerun()
 
         with col2:
-            # 【优化】合并产品信息为紧凑格式
+            # 修改显示格式，与产品详情页保持一致
             exact_model = favorite.get('exact_model', favorite.get('product_model', '未知型号'))
             year_info = favorite.get('year_info', '未知年份')
-            color = favorite['color']
-            size = favorite['size']
+            st.write(f"*{exact_model} - {year_info}*")
+            st.write(f"**颜色:** {favorite['color']} | **尺码:** {favorite['size']}")
+
+            # 价格显示（韩元 + 人民币）
             krw_price = int(favorite['price'])
             cny_price = convert_krw_to_cny(krw_price)
-            sku = favorite['sku']
-            
-            # 第一行：型号和年份
-            st.write(f"**{exact_model}** · {year_info}")
-            
-            # 第二行：颜色、尺码、价格（紧凑格式）
-            price_text = f"¥{cny_price}" if cny_price > 0 else f"{krw_price:,}₩"
-            st.write(f"🎨 {color} | 📏 {size} | 💰 {price_text}")
-            
-            # 第三行：国内售价、折扣、SKU（如果有）
+
+            # 与产品详情页相同的价格显示格式
+            st.write(f"**售价:** {krw_price}韩元 / {cny_price}人民币")
+            # 新增：国内售价和折扣
             china_price = favorite.get('china_price_cny')
             discount_rate = favorite.get('discount_rate', "暂无")
-            
+
             if china_price:
-                st.markdown(f"<small>🏪 ¥{china_price} ({discount_rate}) | SKU:{sku}</small>", unsafe_allow_html=True)
+                st.write(f"**国内售价:** {china_price}人民币")
+                st.write(f"**折扣:** {discount_rate}")
             else:
-                st.markdown(f"<small>SKU: {sku}</small>", unsafe_allow_html=True)
+                st.write("**国内售价:** 暂无")
+                st.write("**折扣:** 暂无")
+            st.write(f"**SKU:** {favorite['sku']}")
 
         with col3:
-            # 【优化】缩小图片尺寸从150改为120，节省空间
+            # 显示产品图片（可选功能）
             image_url = favorite.get('image_url')
             if image_url:
                 try:
-                    st.image(image_url, width=90)  # 进一步缩小到90
+                    st.image(image_url, width=150)  # 适当缩小图片尺寸
                 except:
                     # 图片加载失败时显示占位符
-                    st.write("🖼️")
+                    st.write("🖼️ 图片加载失败")
             else:
                 # 没有图片URL时显示提示
-                st.write("📷")
+                st.write("📷 无图片")
 
-        # 【优化】操作按钮区域 - 合并在一行
+        # 操作按钮区域 - 上下两行
         with col4:
             # 删除按钮（需要确认）
-            if st.button("删除", key=f"delete_{i}", help="删除收藏"):
+            if st.button("删除", key=f"delete_{i}"):
                 if st.session_state.get(f"confirm_delete_{i}", False):
                     success, message = remove_from_favorites(i)
                     if success:
@@ -773,7 +754,7 @@ def show_favorites_tab():
 
         with col5:
             # 单个产品查库存按钮
-            if st.button("查库存", key=f"check_{i}", help="查看库存"):
+            if st.button("查库存", key=f"check_{i}"):
                 stores = query_stock_by_product_id(favorite['sku'])
                 if stores:
                     # 显示库存查询结果
@@ -785,52 +766,54 @@ def show_favorites_tab():
                 else:
                     st.error("无法获取库存信息")
 
-        # 【优化】加入购买计划 - 改为展开式，不占主列表高度
-        is_in_plan, existing_store = check_product_in_plan(
-            favorite['product_model'], 
-            favorite['color'], 
-            favorite['size']
-        )
-        
-        if is_in_plan:
-            st.info(f"✅ 已在 {existing_store} 的购买计划中", icon="✅")
-        else:
-            if st.button("加入计划", key=f"add_plan_{i}"):
-                st.session_state[f"show_store_selection_{i}"] = True
+        # 第二行：加入购买计划按钮
+        col_plan1, col_plan2, col_plan3 = st.columns([1, 3, 3])
+        with col_plan3:
+            # 检查产品是否已在购买计划中
+            is_in_plan, existing_store = check_product_in_plan(
+                favorite['product_model'], 
+                favorite['color'], 
+                favorite['size']
+            )
             
-            # 显示店铺选择下拉框（展开式）
-            if st.session_state.get(f"show_store_selection_{i}", False):
-                store_list = sorted(STORE_REGION_MAPPING.keys())
-                selected_store = st.selectbox(
-                    f"选择店铺",
-                    store_list,
-                    key=f"store_select_{i}"
-                )
+            if is_in_plan:
+                st.info(f"✓ 已在 {existing_store} 的购买计划中")
+            else:
+                if st.button("加入购买计划", key=f"add_plan_{i}"):
+                    st.session_state[f"show_store_selection_{i}"] = True
                 
-                col_confirm, col_cancel = st.columns(2)
-                with col_confirm:
-                    if st.button("确认", key=f"confirm_add_plan_{i}"):
-                        # 准备产品信息
-                        product_info = {
-                            "product_model": favorite['product_model'],
-                            "exact_model": favorite.get('exact_model', ''),
-                            "color": favorite['color'],
-                            "size": favorite['size'],
-                            "price_krw": int(favorite['price']),
-                            "year_info": favorite.get('year_info', ''),
-                            "domestic_price_cny": favorite.get('china_price_cny', None)
-                        }
-                        
-                        if add_to_plan(selected_store, product_info):
+                # 显示店铺选择下拉框
+                if st.session_state.get(f"show_store_selection_{i}", False):
+                    store_list = sorted(STORE_REGION_MAPPING.keys())
+                    selected_store = st.selectbox(
+                        f"选择店铺",
+                        store_list,
+                        key=f"store_select_{i}"
+                    )
+                    
+                    col_confirm, col_cancel = st.columns(2)
+                    with col_confirm:
+                        if st.button("确认", key=f"confirm_add_plan_{i}"):
+                            # 准备产品信息
+                            product_info = {
+                                "product_model": favorite['product_model'],
+                                "exact_model": favorite.get('exact_model', ''),
+                                "color": favorite['color'],
+                                "size": favorite['size'],
+                                "price_krw": int(favorite['price']),
+                                "year_info": favorite.get('year_info', ''),
+                                "domestic_price_cny": favorite.get('china_price_cny', None)
+                            }
+                            
+                            if add_to_plan(selected_store, product_info):
+                                st.session_state[f"show_store_selection_{i}"] = False
+                                st.rerun()
+                    
+                    with col_cancel:
+                        if st.button("取消", key=f"cancel_add_plan_{i}"):
                             st.session_state[f"show_store_selection_{i}"] = False
                             st.rerun()
-                
-                with col_cancel:
-                    if st.button("取消", key=f"cancel_add_plan_{i}"):
-                        st.session_state[f"show_store_selection_{i}"] = False
-                        st.rerun()
 
-        # 【优化】改为细微分割线，减少视觉空隙
         st.divider()
 
     # 初始化session_state
@@ -842,7 +825,7 @@ def show_favorites_tab():
     st.subheader("批量操作")
 
     # 修改：将列数从3增加到4，为试算按钮留出空间
-    col_batch_ops = st.columns([2, 1, 1, 1], gap="small")  # 增加一列
+    col_batch_ops = st.columns([2, 1, 1, 1])  # 增加一列
     # 在 show_favorites_tab 函数中修改查询调用部分
     with col_batch_ops[0]:
         if st.button("一键查库存（选中产品）", key="batch_check_selected"):
@@ -914,7 +897,7 @@ def show_favorites_tab():
         with st.expander("💰 试算结果", expanded=True):
             col_close, _ = st.columns([1, 3])
             with col_close:
-                if st.button("关闭试算", key="close_calculation_result"):
+                if st.button("✕ 关闭试算", key="close_calculation_result"):
                     st.session_state.calculation_result = None
                     st.session_state.selected_for_calculation = []
                     st.rerun()
@@ -1166,7 +1149,7 @@ def show_calculation_config_window(selected_products):
     col1, col2 = st.columns(2)
 
     with col1:
-        if st.button("开始试算", key="calculate_final"):
+        if st.button("🚀 开始试算", key="calculate_final"):
             if not selected_discounts:
                 st.warning("请至少选择一个优惠项目")
             else:
@@ -1177,7 +1160,7 @@ def show_calculation_config_window(selected_products):
                 st.rerun()
 
     with col2:
-        if st.button("返回收藏列表", key="back_to_favorites"):
+        if st.button("← 返回收藏列表", key="back_to_favorites"):
             st.session_state.show_calculation_config = False
             st.session_state.selected_for_calculation = []
             st.rerun()
@@ -1337,7 +1320,7 @@ def display_calculation_results(selected_products, result):
     st.subheader("📊 试算结果")
 
     # 关闭按钮
-    if st.button("关闭试算", key="close_calculation"):
+    if st.button("✕ 关闭试算", key="close_calculation"):
         st.session_state.show_calculation = False
         st.session_state.calculation_result = None
         st.rerun()
@@ -1447,24 +1430,6 @@ def main():
     else:
         st.warning("⚠️ 今日汇率信息暂不可用")
         st.session_state.exchange_rate_info = None
-
-    # 移动端自适应CSS
-    st.markdown("""
-    <style>
-    @media (max-width: 768px) {
-        /* 移动端优化 */
-        .element-container { margin: 0.2rem 0 !important; }
-        [data-testid="column"] { gap: 0.2rem !important; }
-        [data-testid="stVerticalBlock"] { gap: 0.3rem !important; }
-    }
-    @media (max-width: 480px) {
-        /* 超小屏幕优化 */
-        .element-container { margin: 0.1rem 0 !important; }
-        [data-testid="column"] { gap: 0rem !important; }
-        .st-emotion-cache-uc5rjx { padding: 0.5rem !important; }
-    }
-    </style>
-    """, unsafe_allow_html=True)
 
     # 初始化session_state（移到函数内部）
     if "step_history" not in st.session_state:

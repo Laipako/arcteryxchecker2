@@ -4,12 +4,23 @@ from datetime import datetime, timedelta
 import streamlit as st
 
 
-@st.cache_data(ttl=3600)
 def get_exchange_rate():
     """
     获取韩元兑人民币汇率（银联数据）
     返回格式：10000 KRW = XX.XX CNY
+    使用日期级缓存（同一天只请求一次）
     """
+    # 初始化会话状态中的缓存
+    if "exchange_rate_cache" not in st.session_state:
+        st.session_state.exchange_rate_cache = {}
+    
+    cache = st.session_state.exchange_rate_cache
+    today_str = datetime.now().strftime("%Y%m%d")
+    
+    # 检查今天的缓存
+    if today_str in cache and cache[today_str]:
+        return cache[today_str]
+    
     # 获取当前日期和前一天的日期
     today = datetime.now()
     yesterday = today - timedelta(days=1)
@@ -39,8 +50,12 @@ def get_exchange_rate():
 
                     # 格式化日期
                     display_date = datetime.strptime(date_str, "%Y%m%d").strftime("%Y年%m月%d日")
-
-                    return f"{display_date}，10000韩元={discount_rate}人民币"
+                    
+                    result = f"{display_date}，10000韩元={discount_rate}人民币"
+                    
+                    # 缓存结果
+                    cache[today_str] = result
+                    return result
 
         except Exception as e:
             print(f"汇率获取失败 {date_str}: {e}")

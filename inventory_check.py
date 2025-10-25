@@ -193,13 +193,13 @@ def get_inventory_matrix_transposed(favorites_list):
 
     print(f"开始处理 {len(product_ids)} 个产品的库存查询...")
 
-    # 根据产品数量动态调整并发数（保守策略）
+    # 根据产品数量动态调整并发数（优化版：提高并发度）
     if len(product_ids) <= 3:
-        max_workers = 1  # 产品少时使用串行
+        max_workers = 2  # 产品少时使用较低并发
     elif len(product_ids) <= 10:
-        max_workers = 2  # 中等数量使用较低并发
+        max_workers = 4  # 中等数量使用中等并发
     else:
-        max_workers = 3  # 产品多时使用最大并发3
+        max_workers = 8  # 产品多时使用更高并发
 
     # 使用并发查询
     batch_results = batch_query_stock_concurrent(
@@ -382,7 +382,7 @@ def calculate_key_store_analysis(favorites_list, inventory_matrix):
     key_stores = [
         "始祖鸟新世界百货总店", "始祖鸟新世界百货江南店", "始祖鸟新世界百货Centum City店",
         "始祖鸟乐天百货总店", "始祖鸟旗舰店江南", "始祖鸟釜山店",
-        "始祖鸟骊州Premium Village店", "始祖鸟旗舰店大邱寿城",
+        "始祖鸟骊州Premium Village店", "始祖鸟The Hyundai首尔", "始祖鸟旗舰店大邱寿城",
         "始祖鸟现代百货板桥店", "始祖鸟钟路店"
     ]
 

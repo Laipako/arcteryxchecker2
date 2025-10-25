@@ -4,15 +4,10 @@ from lxml import html
 from cache_manager import product_cache  # 新增导入
 import streamlit as st
 
-
+@st.cache_data(ttl=3600)
 def fetch_html_from_url(url):
     """从URL获取HTML内容（支持缓存）"""
     try:
-        # 先检查缓存
-        cache_key = f"html_{hash(url)}"
-        if cache_key in st.session_state:
-            return st.session_state[cache_key]
-
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
@@ -24,9 +19,6 @@ def fetch_html_from_url(url):
         response.raise_for_status()
 
         html_content = response.text
-
-        # 缓存结果
-        st.session_state[cache_key] = html_content
         return html_content
 
     except Exception as e:
@@ -34,14 +26,10 @@ def fetch_html_from_url(url):
         return None
 
 
+@st.cache_data(ttl=3600)
 def extract_product_details(detail_url):
     """提取产品详情页的描述、年份信息和准确型号（支持缓存）"""
     try:
-        # 检查缓存
-        cache_key = f"product_details_{hash(detail_url)}"
-        if cache_key in st.session_state:
-            return st.session_state[cache_key]
-
         html_content = fetch_html_from_url(detail_url)
         if not html_content:
             return None
@@ -66,8 +54,6 @@ def extract_product_details(detail_url):
             "exact_model": exact_model
         }
 
-        # 缓存结果
-        st.session_state[cache_key] = result
         return result
 
     except Exception as e:
@@ -91,15 +77,10 @@ def extract_options(html_content, xpath):
         return []
 
 
+@st.cache_data(ttl=3600)
 def get_product_variants(detail_url):
     """获取产品的颜色和尺码选项（支持缓存）"""
     try:
-        # 检查缓存
-        cache_key = f"product_variants_{hash(detail_url)}"
-        if cache_key in st.session_state:
-            cached_data = st.session_state[cache_key]
-            return cached_data.get('color_options'), cached_data.get('size_options')
-
         html_content = fetch_html_from_url(detail_url)
         if not html_content:
             return None, None
@@ -139,12 +120,6 @@ def get_product_variants(detail_url):
             print(f"尺码提取失败: {e}")
             size_options = []  # 确保有默认值
 
-        # 缓存结果
-        st.session_state[cache_key] = {
-            'color_options': color_options,
-            'size_options': size_options
-        }
-
         return color_options, size_options
 
     except Exception as e:
@@ -152,14 +127,10 @@ def get_product_variants(detail_url):
         return [], []  # 返回空列表而不是None
 
 
+@st.cache_data(ttl=3600)
 def get_sku_info(detail_url, color_value, size_value):
     """获取特定颜色和尺码的SKU信息（支持缓存）"""
     try:
-        # 检查缓存
-        cache_key = f"sku_info_{hash(detail_url)}_{hash(color_value)}_{hash(size_value)}"
-        if cache_key in st.session_state:
-            return st.session_state[cache_key]
-
         html_content = fetch_html_from_url(detail_url)
         if not html_content:
             return None
@@ -194,8 +165,6 @@ def get_sku_info(detail_url, color_value, size_value):
                 "stock": match_sku.group(4)
             }
 
-            # 缓存结果
-            st.session_state[cache_key] = result
             return result
 
         return None

@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 from datetime import datetime, timedelta
+import sys
 
 
 class ProductCache:
@@ -46,6 +47,70 @@ class ProductCache:
             print(f"HTML获取失败: {e}")
             return None
 
+    def should_refresh_cache(self, cache_key):
+        """检查是否需要刷新缓存"""
+        if cache_key not in st.session_state:
+            return True
+        
+        cache_data = st.session_state[cache_key]
+        if 'timestamp' not in cache_data:
+            return True
+        
+        elapsed = datetime.now() - cache_data['timestamp']
+        return elapsed.total_seconds() > (self.ttl_minutes * 60)
+
+    def get_all_cache_items(self):
+        """获取所有缓存项"""
+        cache_items = []
+        for key in st.session_state:
+            if key.startswith('product_'):
+                cache_data = st.session_state[key]
+                if isinstance(cache_data, dict) and 'timestamp' in cache_data:
+                    cache_items.append({
+                        'key': key,
+                        'product_id': cache_data.get('product_id', '未知'),
+                        'timestamp': cache_data.get('timestamp', '未知'),
+                        'size': self._get_object_size(cache_data)
+                    })
+        return cache_items
+
+    def _get_object_size(self, obj):
+        """获取对象大小（字节）"""
+        return sys.getsizeof(obj)
+
+    def get_total_cache_size(self):
+        """获取总缓存大小（字节）"""
+        total_size = 0
+        for key in st.session_state:
+            if key.startswith('product_'):
+                total_size += sys.getsizeof(st.session_state[key])
+        return total_size
+
+    def clear_specific_cache(self, cache_key):
+        """清除特定的缓存项"""
+        if cache_key in st.session_state:
+            del st.session_state[cache_key]
+            return True
+        return False
+
+    def clear_all_cache(self):
+        """清除所有缓存"""
+        keys_to_delete = [key for key in st.session_state if key.startswith('product_')]
+        for key in keys_to_delete:
+            del st.session_state[key]
+        return len(keys_to_delete)
+
+    def get_cache_statistics(self):
+        """获取缓存统计信息"""
+        cache_items = self.get_all_cache_items()
+        total_size = self.get_total_cache_size()
+        
+        return {
+            'count': len(cache_items),
+            'total_size': total_size,
+            'items': cache_items,
+            'ttl_minutes': self.ttl_minutes
+        }
 
 
 # 创建全局缓存实例

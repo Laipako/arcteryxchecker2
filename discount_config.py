@@ -71,5 +71,20 @@ DISCOUNT_CONFIG = {
                 "rule": "银联消费满5万韩元享10%折扣，最高减1万韩元"
             }
         ]
+    },
+    "现代百货": {
+        "description": "现代百货专属优惠",
+        "options": [
+            {
+                "name": "7%积分赠送",
+                "type": "post_tax_tiered_points",
+                "tiers": [
+                    {"threshold": 500000, "amount": 35000},
+                    {"threshold": 700000, "amount": 49000},
+                    {"threshold": 1000000, "amount": 70000}
+                ],
+                "rule": "税后总价满50/70/100万赠3.5/4.9/7万积分"
+            }
+        ]
     }
 }

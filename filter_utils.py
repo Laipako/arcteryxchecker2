@@ -1,6 +1,9 @@
 import pandas as pd
 from io import BytesIO
 from inventory_check import get_store_region
+import streamlit as st
+import hashlib
+import json
 
 
 def any_has_stock(products):
@@ -18,8 +21,29 @@ def store_in_region(store_name, target_region):
     return get_store_region(store_name) == target_region
 
 
-def apply_filters_and_sort(inventory_matrix, stock_filter, region_filter, sort_option):
-    """应用筛选和排序"""
+def _hash_inventory_matrix(inventory_matrix):
+    """为库存矩阵生成哈希值（用于缓存）"""
+    try:
+        matrix_json = json.dumps(inventory_matrix, sort_keys=True, default=str)
+        return hashlib.md5(matrix_json.encode()).hexdigest()
+    except:
+        return None
+
+
+@st.cache_data(ttl=3600)
+def apply_filters_and_sort(inventory_matrix_hash, stock_filter, region_filter, sort_option):
+    """应用筛选和排序（缓存优化版）
+    
+    注意：接收库存矩阵的哈希值以便缓存，调用时使用 _hash_inventory_matrix()
+    """
+    # 由于接收的是哈希值，这个函数在实际调用时应该是这样的：
+    # 实际应该直接在main.py中调用不缓存的版本
+    # 这个设计有问题，改为使用装饰器工厂
+    pass
+
+
+def apply_filters_and_sort_internal(inventory_matrix, stock_filter, region_filter, sort_option):
+    """应用筛选和排序的内部实现"""
     filtered_data = {}
 
     for store_name, products in inventory_matrix.items():
@@ -48,8 +72,35 @@ def apply_filters_and_sort(inventory_matrix, stock_filter, region_filter, sort_o
     return filtered_data
 
 
-def convert_to_excel(df):
-    """将DataFrame转换为Excel字节流"""
+# 创建缓存版本（使用会话状态缓存）
+def apply_filters_and_sort(inventory_matrix, stock_filter, region_filter, sort_option):
+    """应用筛选和排序（支持会话状态缓存）"""
+    # 生成缓存键
+    cache_key = f"filtered_matrix_{stock_filter}_{region_filter}_{sort_option}_{_hash_inventory_matrix(inventory_matrix)}"
+    
+    # 检查会话状态缓存
+    if "filter_cache" not in st.session_state:
+        st.session_state.filter_cache = {}
+    
+    if cache_key in st.session_state.filter_cache:
+        return st.session_state.filter_cache[cache_key]
+    
+    # 执行过滤和排序
+    result = apply_filters_and_sort_internal(inventory_matrix, stock_filter, region_filter, sort_option)
+    
+    # 缓存结果
+    st.session_state.filter_cache[cache_key] = result
+    
+    return result
+
+
+@st.cache_data(ttl=3600)
+def convert_to_excel(df_dict_str):
+    """将DataFrame转换为Excel字节流（缓存优化版）"""
+    # 从字典字符串重建DataFrame
+    df_dict = json.loads(df_dict_str)
+    df = pd.DataFrame.from_dict(df_dict, orient='index')
+    
     output = BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         df.to_excel(writer, sheet_name='库存数据', index=True)
