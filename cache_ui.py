@@ -14,7 +14,7 @@ def format_size(bytes_size):
 
 def show_cache_management_tab():
     """显示缓存管理标签页"""
-    st.subheader("🗑️ 缓存管理")
+    st.subheader("缓存管理")
     
     # 获取缓存统计信息
     stats = product_cache.get_cache_statistics()
@@ -47,7 +47,7 @@ def show_cache_management_tab():
         table_data = []
         for item in cache_items:
             is_expired = is_cache_expired(item['timestamp'], stats['ttl_minutes'])
-            status = "⏰ 已过期" if is_expired else "✅ 有效"
+            status = "已过期" if is_expired else "有效"
             
             table_data.append({
                 "产品ID": item['product_id'],
@@ -60,7 +60,7 @@ def show_cache_management_tab():
         # 显示表格
         st.dataframe(table_data, use_container_width=True)
     else:
-        st.info("📭 暂无缓存数据")
+        st.info("暂无缓存数据")
     
     st.divider()
     
@@ -68,15 +68,15 @@ def show_cache_management_tab():
     col1, col2, col3 = st.columns(3, gap="small")
     
     with col1:
-        if st.button("🧹 清除过期缓存", use_container_width=True):
+        if st.button("清除过期缓存", use_container_width=True):
             removed_count = clear_expired_cache(stats['items'])
-            st.success(f"✅ 已清除 {removed_count} 项过期缓存")
+            st.success(f"已清除 {removed_count} 项过期缓存")
             st.rerun()
     
     with col2:
-        if st.button("🗑️ 清除全部缓存", use_container_width=True):
+        if st.button("清除全部缓存", use_container_width=True):
             removed_count = product_cache.clear_all_cache()
-            st.success(f"✅ 已清除全部缓存（{removed_count} 项）")
+            st.success(f"已清除全部缓存（{removed_count} 项）")
             st.rerun()
     
     with col3:

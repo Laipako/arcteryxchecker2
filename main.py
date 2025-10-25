@@ -298,25 +298,25 @@ def show_product_selection():
     # 优化：使用更清晰的布局显示产品
     for i, product in enumerate(product_details):
         # 优化：使用更紧凑的expand布局
-        with st.expander(f"🎯🎯 产品 {i + 1}: {product['exact_model']}", expanded=(i == 0)):
+        with st.expander(f"产品 {i + 1}: {product['exact_model']}", expanded=(i == 0)):
 
             # 优化：使用列布局显示产品信息
             col_info, col_action = st.columns([3, 1], gap="small")
 
             with col_info:
                 # 保留原有显示格式，但优化布局
-                st.markdown(f"**📋📋 型号:** {product['exact_model']}")
-                st.markdown(f"**📅📅 年份款式:** {product['year_info']}")
+                st.markdown(f"**型号:** {product['exact_model']}")
+                st.markdown(f"**年份款式:** {product['year_info']}")
 
                 # 优化：限制描述文本长度，避免界面过长
                 description = product['description']
                 if len(description) > 150:
                     description = description[:150] + "..."
-                st.markdown(f"**📝📝 描述:** {description}")
+                st.markdown(f"**描述:** {description}")
 
                 # 新增：显示信息完整性状态
                 if not product.get('has_full_info', True):
-                    st.warning("⚠️ 该产品颜色/尺码信息可能不完整")
+                    st.warning("该产品颜色/尺码信息可能不完整")
 
             with col_action:
                 # 优化：按钮样式和布局
@@ -597,7 +597,7 @@ def show_product_details():
                 st.error("图片加载失败")
                 st.info("🖼️ 图片暂不可用")
         else:
-            st.info("📷 无产品图片")
+            st.info("无产品图片")
 
     with col2:
         st.subheader("产品信息")
@@ -774,7 +774,7 @@ def show_favorites_tab():
     if "sort_option" not in st.session_state:
         st.session_state.sort_option = "默认"
 
-    st.header("⭐ 收藏产品")
+    st.header("收藏产品")
 
     if not favorites:
         st.info("暂无收藏产品")
@@ -820,15 +820,17 @@ def show_favorites_tab():
             st.write(f"**{exact_model}** · {year_info}")
             
             # 第二行：颜色、尺码、价格（紧凑格式）
-            price_text = f"¥{cny_price}" if cny_price > 0 else f"{krw_price:,}₩"
-            st.write(f"🎨 {color} | 📏 {size} | 💰 {price_text}")
+            krw_price_str = f"{krw_price:,}₩"
+            cny_price_str = f"¥{cny_price}" if cny_price > 0 else None
+            price_text = f"{krw_price_str} / {cny_price_str}" if cny_price_str else krw_price_str
+            st.write(f"{color} | {size} | {price_text}")
             
             # 第三行：国内售价、折扣、SKU（如果有）
             china_price = favorite.get('china_price_cny')
             discount_rate = favorite.get('discount_rate', "暂无")
             
             if china_price:
-                st.markdown(f"<small>🏪 ¥{china_price} ({discount_rate}) | SKU:{sku}</small>", unsafe_allow_html=True)
+                st.markdown(f"<small>¥{china_price} ({discount_rate}) | SKU:{sku}</small>", unsafe_allow_html=True)
             else:
                 st.markdown(f"<small>SKU: {sku}</small>", unsafe_allow_html=True)
 
@@ -840,10 +842,10 @@ def show_favorites_tab():
                     st.image(image_url, width=90)  # 进一步缩小到90
                 except:
                     # 图片加载失败时显示占位符
-                    st.write("🖼️")
+                    st.write("")
             else:
                 # 没有图片URL时显示提示
-                st.write("📷")
+                st.write("")
 
         # 【优化】操作按钮区域 - 合并在一行
         with col4:
@@ -1544,13 +1546,13 @@ def main():
     rate_info = get_exchange_rate()
 
     # 主标题和汇率信息在同一行
-    st.title("🏔️ 始祖鸟查货系统")
+    st.title("始祖鸟查货系统")
     if rate_info and isinstance(rate_info, dict) and 'display_text' in rate_info:
         st.session_state.exchange_rate_info = rate_info  # 保存供其他模块使用
         # 使用醒目的方式显示
-        st.success(f"💱 实时汇率: {rate_info['display_text']}")
+        st.success(f"实时汇率: {rate_info['display_text']}")
     else:
-        st.warning("⚠️ 今日汇率信息暂不可用")
+        st.warning("今日汇率信息暂不可用")
         st.session_state.exchange_rate_info = None
 
     # 移动端自适应CSS
@@ -1576,7 +1578,7 @@ def main():
         st.session_state.step_history = ["start"]
 
     # 创建标签页
-    tab1, tab2, tab3, tab4 = st.tabs(["🔍 产品查询", "⭐ 收藏产品", "🛒 购买计划", "🗑️ 缓存管理"])
+    tab1, tab2, tab3, tab4 = st.tabs(["产品查询", "收藏产品", "购买计划", "缓存管理"])
 
     with tab1:
         show_product_query_tab()

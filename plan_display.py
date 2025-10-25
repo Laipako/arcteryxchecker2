@@ -21,7 +21,7 @@ except Exception as e:
 
 def show_purchase_plan_tab():
     """显示购买计划标签页"""
-    st.header("🛒 购买计划")
+    st.header("购买计划")
     
     # 初始化session_state
     if "plan_refreshed" not in st.session_state:
@@ -46,7 +46,7 @@ def show_purchase_plan_tab():
         total_price = calculate_store_total_price(products)
         
         # 店铺标题区域
-        st.subheader(f"🏪 {store_name}")
+        st.subheader(f"{store_name}")
         
         # 创建容器用于产品列表
         with st.container(border=True):
@@ -144,7 +144,7 @@ def show_purchase_plan_tab():
         
         # 显示试算结果
         if st.session_state.plan_calculation_result.get(store_name):
-            with st.expander(f"💰 {store_name} 试算结果", expanded=True):
+            with st.expander(f"{store_name} 试算结果", expanded=True):
                 col_close, _ = st.columns([1, 3])
                 with col_close:
                     if st.button(f"关闭试算", key=f"close_calc_{store_name}"):
@@ -160,7 +160,7 @@ def show_store_calculation_config(store_name: str, products: list):
     """显示店铺购买计划的试算配置窗口"""
     from discount_config import DISCOUNT_CONFIG
     
-    st.subheader(f"💰 {store_name} 试算配置")
+    st.subheader(f"{store_name} 试算配置")
     
     # 显示选中的产品清单
     st.write("**产品清单:**")
@@ -188,7 +188,7 @@ def show_store_calculation_config(store_name: str, products: list):
         with col1:
             selected = st.checkbox(option['name'], key=f"discount_plan_{store_name}_{option['name']}")
         with col2:
-            with st.expander("ℹ️ 规则说明"):
+            with st.expander("规则说明"):
                 st.write(option['rule'])
         
         if selected:
