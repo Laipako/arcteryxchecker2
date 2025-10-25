@@ -1,23 +1,6 @@
 # supabase_client.py
-
-# 首先定义备用对象和函数，确保它们始终存在
-Client = None
-create_client = None
-
-# 尝试导入 streamlit，但即使失败也继续
-try:
-    import streamlit as st
-except ImportError:
-    st = None
-
-try:
-    from supabase import create_client, Client
-except ImportError as e:
-    print(f"⚠️ 警告：Supabase库导入失败: {e}")
-    print("请确保已安装：pip install supabase>=2.0.0")
-    # Client 和 create_client 已在上面定义为 None
-    # 这确保了即使导入失败，这些变量也存在
-
+import streamlit as st
+from supabase import create_client, Client
 
 class SupabaseManager:
     """Supabase 管理类"""
@@ -32,10 +15,6 @@ class SupabaseManager:
     def init_client(self):
         """初始化Supabase客户端"""
         try:
-            if create_client is None:
-                print("❌ Supabase库未成功导入，无法初始化客户端")
-                self.client = None
-                return
             # self.url = st.secrets["SUPABASE_URL"]
             self.url = 'https://kmsebovqoemcenedwfbi.supabase.co'
             # self.key = st.secrets["SUPABASE_KEY"]
@@ -52,10 +31,8 @@ class SupabaseManager:
         else:
             raise Exception("Supabase连接不可用")
 
-
 # 创建全局Supabase管理器实例
 supabase_manager = SupabaseManager()
-
 
 # 导出函数和对象供其他模块使用
 def get_supabase():
@@ -65,7 +42,6 @@ def get_supabase():
     except Exception as e:
         print(f"⚠️ Supabase 客户端不可用: {e}")
         return None
-
 
 # 向后兼容：导出supabase对象
 try:

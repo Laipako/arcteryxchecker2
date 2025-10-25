@@ -1,13 +1,5 @@
 import streamlit as st
-
-try:
-    from supabase_client import get_supabase
-except Exception as e:
-    print(f"⚠️ 导入supabase_client失败: {e}")
-    def get_supabase():
-        """备用函数：当supabase_client导入失败时返回None"""
-        return None
-
+from supabase_client import get_supabase
 
 def load_plans():
     """从Supabase加载所有购买计划"""

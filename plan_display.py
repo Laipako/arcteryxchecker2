@@ -1,21 +1,11 @@
 import streamlit as st
-
-try:
-    from purchase_plan_manager import (
-        get_plans_grouped_by_store,
-        calculate_store_total_price,
-        remove_product_from_plan,
-        remove_store_from_plan,
-        calculate_store_domestic_total
-    )
-except Exception as e:
-    print(f"⚠️ 导入purchase_plan_manager失败: {e}")
-    # 提供备用空函数
-    def get_plans_grouped_by_store(): return {}
-    def calculate_store_total_price(products): return 0
-    def remove_product_from_plan(plan_id): return False
-    def remove_store_from_plan(store_name): return False
-    def calculate_store_domestic_total(products): return (0, False)
+from purchase_plan_manager import (
+    get_plans_grouped_by_store,
+    calculate_store_total_price,
+    remove_product_from_plan,
+    remove_store_from_plan,
+    calculate_store_domestic_total
+)
 
 
 def show_purchase_plan_tab():
