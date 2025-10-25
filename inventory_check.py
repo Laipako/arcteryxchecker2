@@ -169,7 +169,9 @@ def query_stock_by_product_id(product_id):
     }
 
     try:
-        response = requests.get(url, headers=headers, timeout=10)
+        # Use connection pooling session instead of creating new request
+        session = get_session()
+        response = session.get(url, headers=headers, timeout=10)
         response.raise_for_status()
         data = response.json()
 
@@ -194,18 +196,20 @@ def get_inventory_matrix_transposed(favorites_list):
     print(f"开始处理 {len(product_ids)} 个产品的库存查询...")
 
     # 根据产品数量动态调整并发数（优化版：提高并发度）
-    if len(product_ids) <= 3:
-        max_workers = 2  # 产品少时使用较低并发
+    if len(product_ids) <= 2:
+        max_workers = 1
+    elif len(product_ids) <= 5:
+        max_workers = 3  # Increased from 2
     elif len(product_ids) <= 10:
-        max_workers = 4  # 中等数量使用中等并发
+        max_workers = 6  # Increased from 4
     else:
-        max_workers = 8  # 产品多时使用更高并发
+        max_workers = 10  # Increased from 8
 
     # 使用并发查询
     batch_results = batch_query_stock_concurrent(
         product_ids,
         max_workers=max_workers,
-        timeout_per_request=12  # 稍微延长超时时间
+        timeout_per_request=10  # Can be kept at 10, connection pooling helps
     )
 
     # 构建产品键映射
@@ -440,6 +444,39 @@ import concurrent.futures
 import time
 from typing import List, Dict, Any
 
+# Add connection pooling after imports
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+
+# 创建全局会话，启用连接池和重试机制
+_session = None
+
+def get_session():
+    """获取全局会话对象，启用连接池和自动重试"""
+    global _session
+    if _session is None:
+        _session = requests.Session()
+        
+        # 配置重试策略
+        retry_strategy = Retry(
+            total=2,  # 总重试次数
+            backoff_factor=0.3,  # 指数退避因子
+            status_forcelist=[429, 500, 502, 503, 504],  # 重试的HTTP状态码
+            allowed_methods=["GET"]  # 只对GET请求重试
+        )
+        
+        # 为HTTP和HTTPS配置适配器
+        adapter = HTTPAdapter(
+            max_retries=retry_strategy,
+            pool_connections=10,  # 连接池大小
+            pool_maxsize=10  # 单个主机最大连接数
+        )
+        
+        _session.mount("http://", adapter)
+        _session.mount("https://", adapter)
+    
+    return _session
+
 
 def batch_query_stock_concurrent(product_ids: List[str], max_workers: int = 3, timeout_per_request: int = 10) -> Dict[
     str, Any]:
@@ -461,8 +498,8 @@ def batch_query_stock_concurrent(product_ids: List[str], max_workers: int = 3, t
     if not product_ids:
         return {}
 
-    if max_workers > 5:  # 安全限制，最大并发数不超过5
-        max_workers = 5
+    if max_workers > 15:  # 安全限制，最大并发数不超过5
+        max_workers = 15
 
     print(f"开始并发查询 {len(product_ids)} 个产品，并发数: {max_workers}")
     start_time = time.time()
@@ -569,14 +606,16 @@ def safe_batch_query(favorites_list, max_workers=None):
         print("警告: 查询数量超过限制 " + str(MAX_QUERY_LIMIT) + "，进行截断")
         valid_favorites = valid_favorites[:MAX_QUERY_LIMIT]
 
-    # 动态计算并发数（保守策略）
+    # 动态计算并发数（更激进的并发策略）
     if max_workers is None:
         if len(valid_favorites) <= 2:
             max_workers = 1
-        elif len(valid_favorites) <= 8:
-            max_workers = 2
+        elif len(valid_favorites) <= 5:
+            max_workers = 3  # Increased from 2
+        elif len(valid_favorites) <= 15:
+            max_workers = 5  # Increased from 3
         else:
-            max_workers = 3
+            max_workers = 8  # Increased from 3
 
     print("安全查询配置: " + str(len(valid_favorites)) + "个产品, 并发数: " + str(max_workers))
 

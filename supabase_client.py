@@ -2,6 +2,12 @@
 import streamlit as st
 from supabase import create_client, Client
 
+# 【优化】使用Streamlit缓存实现单例模式
+@st.cache_resource
+def get_supabase_manager():
+    """获取Supabase管理器单例，使用缓存避免重复初始化"""
+    return SupabaseManager()
+
 class SupabaseManager:
     """Supabase 管理类"""
     _instance = None
@@ -32,12 +38,15 @@ class SupabaseManager:
             raise Exception("Supabase连接不可用")
 
 # 创建全局Supabase管理器实例
-supabase_manager = SupabaseManager()
+# supabase_manager = SupabaseManager() # This line is removed as per the new_code
 
 # 导出函数和对象供其他模块使用
 def get_supabase():
     """获取supabase客户端，安全处理异常"""
     try:
+        # The original code had supabase_manager.get_client() here.
+        # Since the new_code uses st.cache_resource, we need to re-fetch the manager.
+        supabase_manager = get_supabase_manager()
         return supabase_manager.get_client()
     except Exception as e:
         print(f"⚠️ Supabase 客户端不可用: {e}")
@@ -45,6 +54,9 @@ def get_supabase():
 
 # 向后兼容：导出supabase对象
 try:
+    # The original code had supabase_manager.get_client() here.
+    # Since the new_code uses st.cache_resource, we need to re-fetch the manager.
+    supabase_manager = get_supabase_manager()
     supabase = supabase_manager.get_client()
 except Exception as e:
     supabase = None

@@ -29,6 +29,57 @@ from product_detail import extract_product_details, get_product_variants
 from purchase_plan_manager import add_to_plan, check_product_in_plan, load_plans
 from plan_display import show_purchase_plan_tab
 from cache_ui import show_cache_management_tab
+
+# ============ 缓存优化函数 ============
+
+@st.cache_data(ttl=3600)
+def load_favorites_cached():
+    """加载收藏产品（缓存1小时）"""
+    return load_favorites()
+
+@st.cache_data(ttl=3600)
+def load_plans_cached():
+    """加载购买计划（缓存1小时）"""
+    return load_plans()
+
+# ============ 分页和性能优化函数 ============
+
+def paginate_dataframe(df, page_size=15):
+    """为DataFrame添加分页功能"""
+    total_rows = len(df)
+    total_pages = (total_rows + page_size - 1) // page_size
+    
+    # 初始化分页session state
+    if "inventory_matrix_page" not in st.session_state:
+        st.session_state.inventory_matrix_page = 1
+    
+    current_page = st.session_state.inventory_matrix_page
+    
+    # 分页控件
+    col1, col2, col3 = st.columns([2, 3, 1])
+    
+    with col1:
+        if current_page > 1:
+            if st.button("⬅️ 上一页", key="prev_page"):
+                st.session_state.inventory_matrix_page = current_page - 1
+                st.rerun()
+    
+    with col2:
+        st.write(f"📄 第 **{current_page}** / {total_pages} 页 （共 {total_rows} 个店铺）")
+    
+    with col3:
+        if current_page < total_pages:
+            if st.button("下一页 ➡️", key="next_page"):
+                st.session_state.inventory_matrix_page = current_page + 1
+                st.rerun()
+    
+    # 计算当前页的数据范围
+    start_idx = (current_page - 1) * page_size
+    end_idx = min(start_idx + page_size, total_rows)
+    
+    # 返回当前页的数据
+    return df.iloc[start_idx:end_idx], current_page, total_pages
+
 def format_string(s):
     """格式化字符串用于URL构造"""
     if not s:
@@ -629,40 +680,29 @@ def convert_krw_to_cny(krw_amount):
 
 
 def show_favorites_tab():
-    """展示收藏产品列表"""
-    # 移动端自适应检测和CSS优化
-    st.markdown("""
-    <style>
-    @media (max-width: 768px) {
-        /* 移动端优化 */
-        .element-container { margin: 0.2rem 0 !important; }
-        [data-testid="column"] { gap: 0.2rem !important; }
-        [data-testid="stVerticalBlock"] { gap: 0.3rem !important; }
-    }
-    @media (max-width: 480px) {
-        /* 超小屏幕优化 */
-        .element-container { margin: 0.1rem 0 !important; }
-        [data-testid="column"] { gap: 0rem !important; }
-        .st-emotion-cache-uc5rjx { padding: 0.5rem !important; }
-    }
-    </style>
-    """, unsafe_allow_html=True)
+    """显示收藏标签页面"""
+    favorites = load_favorites_cached()
     
-    # 数据备份机制
-    if "favorites_backup" not in st.session_state:
-        st.session_state.favorites_backup = None
-
-    # 在关键操作前备份数据
-    try:
-        favorites = load_favorites()
-        st.session_state.favorites_backup = favorites.copy()  # 备份
-    except:
-        favorites = st.session_state.get("favorites_backup", [])
-    # 初始化session_state（在函数内部）
+    # 初始化选中状态
+    if "selected_favorites" not in st.session_state:
+        st.session_state.selected_favorites = set()
     if "inventory_queried" not in st.session_state:
         st.session_state.inventory_queried = False
-    if "inventory_matrix" not in st.session_state:
-        st.session_state.inventory_matrix = None
+    
+    # Cache store list at function start
+    if "sorted_store_list" not in st.session_state:
+        st.session_state.sorted_store_list = sorted(STORE_REGION_MAPPING.keys())
+    
+    # 初始化session_state
+    if "show_calculation" not in st.session_state:
+        st.session_state.show_calculation = False
+    if "selected_for_calculation" not in st.session_state:
+        st.session_state.selected_for_calculation = []
+    if "show_calculation_config" not in st.session_state:
+        st.session_state.show_calculation_config = False
+    if "calculation_result" not in st.session_state:
+        st.session_state.calculation_result = None
+    # 【新增】初始化筛选相关的session_state
     if "stock_filter" not in st.session_state:
         st.session_state.stock_filter = "全部"
     if "region_filter" not in st.session_state:
@@ -670,21 +710,7 @@ def show_favorites_tab():
     if "sort_option" not in st.session_state:
         st.session_state.sort_option = "默认"
 
-    # 新增：初始化选中状态
-    if "selected_favorites" not in st.session_state:
-        st.session_state.selected_favorites = set()
-
-    # 新增：统一初始化试算相关状态
-    if "show_calculation_config" not in st.session_state:
-        st.session_state.show_calculation_config = False
-    if "selected_for_calculation" not in st.session_state:
-        st.session_state.selected_for_calculation = []
-    if "calculation_result" not in st.session_state:
-        st.session_state.calculation_result = None
-
     st.header("⭐ 收藏产品")
-
-    favorites = load_favorites()
 
     if not favorites:
         st.info("暂无收藏产品")
@@ -713,7 +739,8 @@ def show_favorites_tab():
                     st.session_state.selected_favorites.add(i)
                 else:
                     st.session_state.selected_favorites.discard(i)
-                st.rerun()
+                # Mark as changed but don't rerun immediately
+                st.session_state._checkbox_changed = True
 
         with col2:
             # 【优化】合并产品信息为紧凑格式
@@ -786,21 +813,27 @@ def show_favorites_tab():
                     st.error("无法获取库存信息")
 
         # 【优化】加入购买计划 - 改为展开式，不占主列表高度
-        is_in_plan, existing_store = check_product_in_plan(
-            favorite['product_model'], 
-            favorite['color'], 
-            favorite['size']
-        )
+        # Use cached result from session state if available
+        plan_cache_key = f"plan_check_{favorite['product_model']}_{favorite['color']}_{favorite['size']}"
+        if plan_cache_key not in st.session_state:
+            is_in_plan, existing_store = check_product_in_plan(
+                favorite['product_model'], 
+                favorite['color'], 
+                favorite['size']
+            )
+            st.session_state[plan_cache_key] = (is_in_plan, existing_store)
+        else:
+            is_in_plan, existing_store = st.session_state[plan_cache_key]
         
         if is_in_plan:
-            st.info(f"✅ 已在 {existing_store} 的购买计划中", icon="✅")
+            st.info(f"已在 {existing_store} 的购买计划中 ✅")
         else:
             if st.button("加入计划", key=f"add_plan_{i}"):
                 st.session_state[f"show_store_selection_{i}"] = True
             
             # 显示店铺选择下拉框（展开式）
             if st.session_state.get(f"show_store_selection_{i}", False):
-                store_list = sorted(STORE_REGION_MAPPING.keys())
+                store_list = st.session_state.sorted_store_list
                 selected_store = st.selectbox(
                     f"选择店铺",
                     store_list,
@@ -833,11 +866,6 @@ def show_favorites_tab():
         # 【优化】改为细微分割线，减少视觉空隙
         st.divider()
 
-    # 初始化session_state
-    if "show_calculation" not in st.session_state:
-        st.session_state.show_calculation = False
-    if "selected_for_calculation" not in st.session_state:
-        st.session_state.selected_for_calculation = []
     # 一键查库存功能（只查询选中产品）
     st.subheader("批量操作")
 
@@ -862,6 +890,7 @@ def show_favorites_tab():
                 if inventory_matrix:
                     st.session_state.inventory_queried = True
                     st.session_state.inventory_matrix = inventory_matrix
+                    st.session_state.inventory_matrix_page = 1  # 【优化】重置分页状态
                     progress_text.success("查询完成！共获取 " + str(len(inventory_matrix)) + " 个店铺的库存数据")
                 else:
                     st.error("库存查询失败，请检查网络连接或稍后重试")
@@ -886,6 +915,7 @@ def show_favorites_tab():
                 if inventory_matrix:
                     st.session_state.inventory_queried = True
                     st.session_state.inventory_matrix = inventory_matrix
+                    st.session_state.inventory_matrix_page = 1  # 【优化】重置分页状态
                     progress_text.success(f"查询完成！共获取 {len(inventory_matrix)} 个店铺的库存数据")
                 else:
                     st.error("库存查询失败，请检查网络连接或稍后重试")
@@ -1091,7 +1121,10 @@ def show_favorites_tab():
                 </style>
                 """, unsafe_allow_html=True)
 
-                st.dataframe(df, use_container_width=True, height=500)
+                # 应用分页（每页15个店铺）
+                paginated_df, current_page, total_pages = paginate_dataframe(df, page_size=15)
+
+                st.dataframe(paginated_df, use_container_width=True, height=500)
 
                 # Excel下载按钮 - 转换DataFrame为JSON字符串以支持缓存
                 import json
