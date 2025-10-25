@@ -793,7 +793,7 @@ def show_favorites_tab():
         )
         
         if is_in_plan:
-            st.info(f"✅ 已在 {existing_store} 的购买计划中", icon="✅")
+            st.info(f"已在 {existing_store} 的购买计划中")
         else:
             if st.button("加入计划", key=f"add_plan_{i}"):
                 st.session_state[f"show_store_selection_{i}"] = True
