@@ -6,7 +6,6 @@ from product_search import generate_api_url, extract_product_ids_from_api
 from product_detail import extract_product_details, get_product_variants, get_sku_info
 from favorites_manager import load_favorites, add_to_favorites, remove_from_favorites
 from utils import standardize_model_name
-from favorites_manager import add_to_favorites
 # 确保导入以下函数
 from inventory_check import (
     query_stock_by_product_id,
@@ -19,12 +18,11 @@ from inventory_check import (
     STORE_REGION_MAPPING
 )
 import re
+import hashlib
 # 新增filter_utils的导入
 from filter_utils import apply_filters_and_sort, convert_to_excel
 from exchange_rate import get_exchange_rate  # 新增导入
-# 在 main.py 的导入语句之后，main() 函数之前添加：
 from cache_manager import product_cache
-from product_detail import extract_product_details, get_product_variants
 # 新增购买计划相关导入
 from purchase_plan_manager import add_to_plan, check_product_in_plan, load_plans
 from plan_display import show_purchase_plan_tab
@@ -169,14 +167,14 @@ def show_product_query_tab():
     # 新增：性别选择控件
     gender = st.radio(
         "选择性别",
-        ["男款", "女款"],
+        ["男款", "女款", "背包"],
         index=0,  # 默认选择男款
         key="gender_select",
         horizontal=True  # 水平排列
     )
 
     # 将中文转换为API参数
-    gender_map = {"男款": "MALE", "女款": "FEMALE"}
+    gender_map = {"男款": "MALE", "女款": "FEMALE", "背包": "BACKPACK"}
     selected_gender = gender_map[gender]
     if st.button("搜索产品", key="search_btn"):
         if not product_model.strip():
@@ -227,7 +225,7 @@ def show_product_selection():
     st.subheader("找到以下产品，请选择：")
 
     # 优化：使用更清晰的变量名
-    gender_display = {"MALE": "男款", "FEMALE": "女款"}
+    gender_display = {"MALE": "男款", "FEMALE": "女款", "BACKPACK": "背包"}
     current_gender = gender_display.get(st.session_state.selected_gender, "男款")
 
     # 优化：使用更醒目的方式显示搜索条件
@@ -428,18 +426,63 @@ def show_color_selection():
             """,
             unsafe_allow_html=True
         )
+        
+        # 检查是否有任何颜色有hex_list
+        any_has_hex = any(color.get('hex_list', []) for color in color_options)
+        
         # 为每个颜色显示色块（在循环中）
         for color in color_options:
-            # 获取颜色HEX值
-            hex_color = color.get('hex', '#CCCCCC')
+            # 获取颜色HEX列表
+            hex_list = color.get('hex_list', [])
+            image_chip = color.get('image_chip', '')
+            color_name = color.get('name', '未知')
+            
+            # 确保hex_list是列表
+            if not isinstance(hex_list, list):
+                hex_list = []
+            
+            print(f"[DEBUG RENDER] 颜色: {color_name}, hex_list: {hex_list}, len: {len(hex_list)}")
+            
+            # 根据HEX值数量生成不同的背景样式
+            # 优先级: 混合色(hex>=2) > 单色(hex=1) > 图片 > 默认
+            if len(hex_list) >= 2:
+                # 双色或多色：左右分块显示（不是渐变）
+                hex1 = hex_list[0]
+                hex2 = hex_list[1]
+                background_style = "display: flex; height: 24px;"
+                inner_html = f"""<div style="flex: 1; background-color: {hex1};"></div><div style="flex: 1; background-color: {hex2};"></div>"""
+                print(f"  => 使用分块: {hex1} | {hex2} (HEX数量: {len(hex_list)})")
+            elif len(hex_list) == 1:
+                # 纯色：显示单一颜色
+                background_style = f"background-color: {hex_list[0]};"
+                inner_html = ""
+                print(f"  => 使用单色: {background_style}")
+            elif image_chip:
+                # 没有HEX值但有图片：显示图片作为色块
+                background_style = f"background-image: url('{image_chip}'); background-size: cover; background-position: center;"
+                inner_html = ""
+                print(f"  => 使用图片")
+            else:
+                # 降级方案：如果没有任何颜色有hex_list，使用颜色名称的哈希值生成随机颜色
+                # 这是为了在完全没有数据时仍然能显示某种颜色块
+                if not any_has_hex:
+                    color_hash = hashlib.md5(color_name.encode()).hexdigest()
+                    hue = int(color_hash[:6], 16) % 360
+                    background_style = f"background-color: hsl({hue}, 70%, 60%);"
+                    inner_html = ""
+                    print(f"  => 使用随机颜色（生成）")
+                else:
+                    background_style = "background-color: #CCCCCC;"
+                    inner_html = ""
+                    print(f"  => 使用默认灰色")
 
-            # 显示色块和颜色名称（紧凑布局）
-            st.markdown(f"""
-                <div style="display: flex; align-items: center; margin: 0.5px 0; padding: 1px 0;">
-                    <div style="width: 24px; height: 24px; background-color: {hex_color}; 
-                             border: 0.1px solid #ddd; border-radius: 4px; flex-shrink: 0;"></div>
-                </div>
-                """, unsafe_allow_html=True)
+            # 显示色块
+            if inner_html:
+                # 多色分块显示
+                st.markdown(f'<div style="display: flex; align-items: center; margin: 0.5px 0; padding: 1px 0;"><div style="{background_style} border: 0.5px solid #ddd; border-radius: 4px; flex-shrink: 0; width: 24px;">{inner_html}</div></div>', unsafe_allow_html=True)
+            else:
+                # 单色或其他显示
+                st.markdown(f'<div style="display: flex; align-items: center; margin: 0.5px 0; padding: 1px 0;"><div style="width: 24px; height: 24px; {background_style} border: 0.5px solid #ddd; border-radius: 4px; flex-shrink: 0;"></div></div>', unsafe_allow_html=True)
 
     # 6. 确认按钮
     if st.button("确认颜色", key="confirm_color"):
@@ -508,11 +551,25 @@ def show_product_details():
         st.error("无法获取产品SKU信息")
         return
 
-    # 图片URL生成
-    product_id = st.session_state.selected_product_id
+    # 简化的图片获取逻辑：直接从颜色选项中获取image_chip URL
+    color_options = cached_info.get('color_options', [])
     image_url = None
-    if product_id:
+    
+    try:
+        # 从颜色选项中查找匹配的颜色，获取其image_chip URL
+        for color_option in color_options:
+            if color_option.get('name', '').strip() == st.session_state.selected_color.strip():
+                image_chip = color_option.get('image_chip', '')
+                if image_chip:
+                    image_url = image_chip
+                    break
+    except Exception as e:
+        pass
+    
+    # 备用方案：如果没有image_chip，使用构造URL
+    if not image_url:
         try:
+            product_id = st.session_state.selected_product_id
             formatted_model = format_string(st.session_state.exact_model)
             formatted_color = format_color(st.session_state.selected_color)
             gender = st.session_state.selected_gender  # MALE 或 FEMALE
@@ -522,8 +579,7 @@ def show_product_details():
             else:
                 image_url = f"https://product.arcteryx.co.kr/images/products/{product_id}/{formatted_model}-{formatted_color}.jpg"
         except Exception as e:
-            print(f"图片URL生成失败: {e}")
-            image_url = None
+            pass
 
     st.session_state.product_image_url = image_url
 
@@ -631,6 +687,8 @@ def show_product_details():
                 success, message = add_to_favorites(product_info)
                 if success:
                     st.success(message)
+                    # 清除收藏列表缓存，使收藏标签页能显示新添加的产品
+                    st.cache_data.clear()
                 else:
                     st.error(message)
             except Exception as e:
@@ -638,8 +696,6 @@ def show_product_details():
 
 def calculate_discount_rate(korea_price_cny, china_price_cny):
     """修复后的折扣计算函数"""
-    print(f"调试信息 - 韩国价: {korea_price_cny} ({type(korea_price_cny)})")
-    print(f"调试信息 - 国内价: {china_price_cny} ({type(china_price_cny)})")
     try:
         # 确保数据类型正确
         korea_price = float(korea_price_cny) if korea_price_cny else 0
@@ -664,14 +720,22 @@ def convert_krw_to_cny(krw_amount):
     try:
         # 从主页面获取汇率信息
         if 'exchange_rate_info' in st.session_state:
-            rate_str = st.session_state.exchange_rate_info
-            # 从字符串中提取汇率值（如从"10000韩元=50.34人民币"提取50.34）
-            import re
-            match = re.search(r'10000韩元=(\d+\.?\d*)人民币', rate_str)
-            if match:
-                rate_per_10000 = float(match.group(1))
+            rate_info = st.session_state.exchange_rate_info
+            
+            # 新格式：字典类型，包含 'rate' 键
+            if isinstance(rate_info, dict) and 'rate' in rate_info:
+                rate_per_10000 = float(rate_info['rate'])
                 cny_amount = (krw_amount / 10000) * rate_per_10000
                 return int(cny_amount)  # 取整显示
+            
+            # 旧格式：字符串类型（后向兼容）
+            elif isinstance(rate_info, str):
+                import re
+                match = re.search(r'10000韩元=(\d+\.?\d*)人民币', rate_info)
+                if match:
+                    rate_per_10000 = float(match.group(1))
+                    cny_amount = (krw_amount / 10000) * rate_per_10000
+                    return int(cny_amount)  # 取整显示
     except:
         pass
 
@@ -791,6 +855,8 @@ def show_favorites_tab():
                         st.success(message)
                         # 同时从选中状态中移除
                         st.session_state.selected_favorites.discard(i)
+                        # 清除收藏列表缓存，使列表能刷新
+                        st.cache_data.clear()
                         st.rerun()
                     else:
                         st.error(message)
@@ -826,7 +892,7 @@ def show_favorites_tab():
             is_in_plan, existing_store = st.session_state[plan_cache_key]
         
         if is_in_plan:
-            st.info(f"已在 {existing_store} 的购买计划中 ✅")
+            st.info(f"已在 {existing_store} 的购买计划中 ✅\n同一产品不能加入多个店铺")
         else:
             if st.button("加入计划", key=f"add_plan_{i}"):
                 st.session_state[f"show_store_selection_{i}"] = True
@@ -855,9 +921,15 @@ def show_favorites_tab():
                         }
                         
                         if add_to_plan(selected_store, product_info):
+                            st.success(f"✅ 已成功加入 {selected_store} 的购买计划")
                             st.session_state[f"show_store_selection_{i}"] = False
+                            # 清除计划缓存，刷新计划状态
+                            if plan_cache_key in st.session_state:
+                                del st.session_state[plan_cache_key]
                             st.rerun()
-                
+                        else:
+                            st.error("❌ 添加失败：该产品已在其他店铺的购买计划中，同一产品不能加入多个店铺")
+
                 with col_cancel:
                     if st.button("取消", key=f"cancel_add_plan_{i}"):
                         st.session_state[f"show_store_selection_{i}"] = False
@@ -1476,7 +1548,7 @@ def main():
     if rate_info:
         st.session_state.exchange_rate_info = rate_info  # 保存供其他模块使用
         # 使用醒目的方式显示
-        st.success(f"💱 实时汇率: {rate_info}")
+        st.success(f"💱 实时汇率: {rate_info['display_text']}")
     else:
         st.warning("⚠️ 今日汇率信息暂不可用")
         st.session_state.exchange_rate_info = None

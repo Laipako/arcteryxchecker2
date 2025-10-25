@@ -9,7 +9,8 @@ try:
         calculate_store_domestic_total
     )
 except Exception as e:
-    print(f"⚠️ 导入purchase_plan_manager失败: {e}")
+    error_msg = f"Warning: Failed to import purchase_plan_manager: {e}"
+    print(error_msg)
     # 提供备用空函数
     def get_plans_grouped_by_store(): return {}
     def calculate_store_total_price(products): return 0
@@ -68,6 +69,10 @@ def show_purchase_plan_tab():
                     if st.button("删除", key=f"delete_product_{product['id']}", help="删除该产品"):
                         if remove_product_from_plan(product['id']):
                             st.success("已删除")
+                            # 清除所有计划缓存，使收藏列表能正确刷新
+                            keys_to_delete = [k for k in st.session_state.keys() if k.startswith("plan_check_")]
+                            for key in keys_to_delete:
+                                del st.session_state[key]
                             st.rerun()
                 
                 with col4:
@@ -103,6 +108,10 @@ def show_purchase_plan_tab():
                     if remove_store_from_plan(store_name):
                         st.success(f"已删除 {store_name} 及其所有产品")
                         st.session_state[f"confirm_delete_{store_name}"] = False
+                        # 清除所有计划缓存，使收藏列表能正确刷新
+                        keys_to_delete = [k for k in st.session_state.keys() if k.startswith("plan_check_")]
+                        for key in keys_to_delete:
+                            del st.session_state[key]
                         st.rerun()
                 else:
                     st.session_state[f"confirm_delete_{store_name}"] = True
@@ -118,6 +127,10 @@ def show_purchase_plan_tab():
                     if remove_store_from_plan(store_name):
                         st.success(f"已删除 {store_name} 及其所有产品")
                         st.session_state[f"confirm_delete_{store_name}"] = False
+                        # 清除所有计划缓存，使收藏列表能正确刷新
+                        keys_to_delete = [k for k in st.session_state.keys() if k.startswith("plan_check_")]
+                        for key in keys_to_delete:
+                            del st.session_state[key]
                         st.rerun()
             with col_cancel:
                 if st.button("取消", key=f"cancel_delete_btn_{store_name}"):

@@ -14,9 +14,12 @@ def generate_api_url(product_model, gender="MALE", page=1, display_size=16):
         "display_size": display_size,
         "is_filter": 0,
         "search_keyword": encoded_model,
-        "f_gender[]": gender,
         "sort": "NEWDESC"
     }
+
+    # 只在gender不是"BACKPACK"时添加f_gender[]参数
+    if gender != "BACKPACK":
+        params["f_gender[]"] = gender
 
     query_string = "&".join([f"{k}={v}" for k, v in params.items()])
     return f"{base_url}?{query_string}"
