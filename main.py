@@ -1545,7 +1545,7 @@ def main():
 
     # 主标题和汇率信息在同一行
     st.title("🏔️ 始祖鸟查货系统")
-    if rate_info:
+    if rate_info and isinstance(rate_info, dict) and 'display_text' in rate_info:
         st.session_state.exchange_rate_info = rate_info  # 保存供其他模块使用
         # 使用醒目的方式显示
         st.success(f"💱 实时汇率: {rate_info['display_text']}")
