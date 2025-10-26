@@ -9,8 +9,7 @@ try:
         calculate_store_domestic_total
     )
 except Exception as e:
-    error_msg = f"Warning: Failed to import purchase_plan_manager: {e}"
-    print(error_msg)
+    print(f"⚠️ 导入purchase_plan_manager失败: {e}")
     # 提供备用空函数
     def get_plans_grouped_by_store(): return {}
     def calculate_store_total_price(products): return 0
@@ -21,7 +20,7 @@ except Exception as e:
 
 def show_purchase_plan_tab():
     """显示购买计划标签页"""
-    st.header("购买计划")
+    st.header("🛒 购买计划")
     
     # 初始化session_state
     if "plan_refreshed" not in st.session_state:
@@ -46,7 +45,7 @@ def show_purchase_plan_tab():
         total_price = calculate_store_total_price(products)
         
         # 店铺标题区域
-        st.subheader(f"{store_name}")
+        st.subheader(f"🏪 {store_name}")
         
         # 创建容器用于产品列表
         with st.container(border=True):
@@ -69,10 +68,6 @@ def show_purchase_plan_tab():
                     if st.button("删除", key=f"delete_product_{product['id']}", help="删除该产品"):
                         if remove_product_from_plan(product['id']):
                             st.success("已删除")
-                            # 清除所有计划缓存，使收藏列表能正确刷新
-                            keys_to_delete = [k for k in st.session_state.keys() if k.startswith("plan_check_")]
-                            for key in keys_to_delete:
-                                del st.session_state[key]
                             st.rerun()
                 
                 with col4:
@@ -108,10 +103,6 @@ def show_purchase_plan_tab():
                     if remove_store_from_plan(store_name):
                         st.success(f"已删除 {store_name} 及其所有产品")
                         st.session_state[f"confirm_delete_{store_name}"] = False
-                        # 清除所有计划缓存，使收藏列表能正确刷新
-                        keys_to_delete = [k for k in st.session_state.keys() if k.startswith("plan_check_")]
-                        for key in keys_to_delete:
-                            del st.session_state[key]
                         st.rerun()
                 else:
                     st.session_state[f"confirm_delete_{store_name}"] = True
@@ -127,10 +118,6 @@ def show_purchase_plan_tab():
                     if remove_store_from_plan(store_name):
                         st.success(f"已删除 {store_name} 及其所有产品")
                         st.session_state[f"confirm_delete_{store_name}"] = False
-                        # 清除所有计划缓存，使收藏列表能正确刷新
-                        keys_to_delete = [k for k in st.session_state.keys() if k.startswith("plan_check_")]
-                        for key in keys_to_delete:
-                            del st.session_state[key]
                         st.rerun()
             with col_cancel:
                 if st.button("取消", key=f"cancel_delete_btn_{store_name}"):
@@ -144,7 +131,7 @@ def show_purchase_plan_tab():
         
         # 显示试算结果
         if st.session_state.plan_calculation_result.get(store_name):
-            with st.expander(f"{store_name} 试算结果", expanded=True):
+            with st.expander(f"💰 {store_name} 试算结果", expanded=True):
                 col_close, _ = st.columns([1, 3])
                 with col_close:
                     if st.button(f"关闭试算", key=f"close_calc_{store_name}"):
@@ -160,7 +147,7 @@ def show_store_calculation_config(store_name: str, products: list):
     """显示店铺购买计划的试算配置窗口"""
     from discount_config import DISCOUNT_CONFIG
     
-    st.subheader(f"{store_name} 试算配置")
+    st.subheader(f"💰 {store_name} 试算配置")
     
     # 显示选中的产品清单
     st.write("**产品清单:**")
@@ -188,7 +175,7 @@ def show_store_calculation_config(store_name: str, products: list):
         with col1:
             selected = st.checkbox(option['name'], key=f"discount_plan_{store_name}_{option['name']}")
         with col2:
-            with st.expander("规则说明"):
+            with st.expander("ℹ️ 规则说明"):
                 st.write(option['rule'])
         
         if selected:
@@ -215,14 +202,7 @@ def show_store_calculation_config(store_name: str, products: list):
 
 
 def display_store_calculation_results(store_name: str, products: list, result):
-    """
-    显示店铺购买计划的试算结果（改进版）
-    
-    改进点：
-    1. 在进行任何汇率转换前，确保汇率信息有效
-    2. 使用三层尝试机制获取有效汇率
-    3. 改进的错误提示和降级处理
-    """
+    """显示店铺购买计划的试算结果"""
     from main import convert_krw_to_cny
     
     if not result:
@@ -231,19 +211,6 @@ def display_store_calculation_results(store_name: str, products: list, result):
     
     st.subheader("📊 试算结果")
     
-    # ============ 第0步：主动确保汇率有效（预防性检查） ============
-    # 这是关键的改进——不是等汇率转换失败才检查，而是主动预检查
-    
-    if 'exchange_rate_info' not in st.session_state or st.session_state.exchange_rate_info is None:
-        # Session state中没有汇率，立即尝试获取
-        from exchange_rate import get_exchange_rate
-        rate_info = get_exchange_rate()
-        if rate_info:
-            st.session_state.exchange_rate_info = rate_info
-            st.info(f"✅ 已更新汇率：{rate_info.get('display_text', '汇率已就绪')}")
-        else:
-            st.warning("⚠️ 暂无法获取汇率信息，人民币价格可能显示为 0")
-    
     # 显示产品清单
     st.write("**产品清单:**")
     for i, product in enumerate(products, 1):
@@ -251,34 +218,13 @@ def display_store_calculation_results(store_name: str, products: list, result):
     
     st.divider()
     
-    # ============ 第1步：进行汇率转换（现在汇率应该已就绪） ============
+    # 计算人民币价格
     cny_price = convert_krw_to_cny(result['final_payment'])
     
-    # ============ 第2步：如果转换失败（返回0），进行补救 ============
-    if cny_price == 0:
-        st.warning("⚠️ 人民币转换失败，正在尝试重新获取汇率...")
-        from exchange_rate import get_exchange_rate, clear_exchange_rate_cache
-        
-        # 清空缓存强制重新获取
-        clear_exchange_rate_cache()
-        rate_info = get_exchange_rate()
-        
-        if rate_info and isinstance(rate_info, dict):
-            # 保存到session_state
-            st.session_state.exchange_rate_info = rate_info
-            # 重新尝试转换
-            cny_price = convert_krw_to_cny(result['final_payment'])
-            if cny_price > 0:
-                st.success(f"✅ 汇率已更新：{rate_info.get('display_text', '转换成功')}")
-            else:
-                st.error("❌ 汇率信息获取成功但仍无法转换，请稍后重试")
-        else:
-            st.error("❌ 暂无法获取有效的汇率信息")
-    
-    # ============ 第3步：计算国内总价和折扣率 ============
+    # 计算国内总价和折扣率
     total_domestic_price, has_all_domestic_prices = calculate_store_domestic_total(products)
     discount_rate = None
-    if has_all_domestic_prices and total_domestic_price > 0 and cny_price > 0:
+    if has_all_domestic_prices and total_domestic_price > 0:
         discount_rate = int((cny_price / total_domestic_price) * 100)
     
     # 显示计算步骤
