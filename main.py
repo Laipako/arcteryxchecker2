@@ -667,35 +667,17 @@ def calculate_discount_rate(korea_price_cny, china_price_cny):
 def convert_krw_to_cny(krw_amount):
     """
     将韩元金额转换为人民币金额
-    复用主页面显示的汇率数据，如果失效则直接获取
+    复用主页面显示的汇率数据
     """
     try:
-        # 首先尝试从session_state获取汇率信息
+        # 从主页面获取汇率信息
         if 'exchange_rate_info' in st.session_state:
-            rate_info = st.session_state.exchange_rate_info
-            
-            # 新格式：字典类型，包含 'rate' 键
-            if isinstance(rate_info, dict) and 'rate' in rate_info:
-                rate_per_10000 = float(rate_info['rate'])
-                if rate_per_10000 > 0:
-                    cny_amount = (krw_amount / 10000) * rate_per_10000
-                    return int(cny_amount)  # 取整显示
-            
-            # 旧格式：字符串类型（后向兼容）
-            elif isinstance(rate_info, str):
-                import re
-                match = re.search(r'10000韩元=(\d+\.?\d*)人民币', rate_info)
-                if match:
-                    rate_per_10000 = float(match.group(1))
-                    cny_amount = (krw_amount / 10000) * rate_per_10000
-                    return int(cny_amount)  # 取整显示
-        
-        # session_state失效时，直接获取汇率
-        from exchange_rate import get_exchange_rate
-        rate_info = get_exchange_rate()
-        if rate_info and 'rate' in rate_info:
-            rate_per_10000 = float(rate_info['rate'])
-            if rate_per_10000 > 0:
+            rate_str = st.session_state.exchange_rate_info
+            # 从字符串中提取汇率值（如从"10000韩元=50.34人民币"提取50.34）
+            import re
+            match = re.search(r'10000韩元=(\d+\.?\d*)人民币', rate_str)
+            if match:
+                rate_per_10000 = float(match.group(1))
                 cny_amount = (krw_amount / 10000) * rate_per_10000
                 return int(cny_amount)  # 取整显示
     except:
@@ -1500,10 +1482,10 @@ def main():
 
     # 主标题和汇率信息在同一行
     st.title("🏔️ 始祖鸟查货系统")
-    if rate_info and isinstance(rate_info, dict) and 'display_text' in rate_info:
+    if rate_info:
         st.session_state.exchange_rate_info = rate_info  # 保存供其他模块使用
         # 使用醒目的方式显示
-        st.success(f"💱 实时汇率: {rate_info['display_text']}")
+        st.success(f"💱 实时汇率: {rate_info}")
     else:
         st.warning("⚠️ 今日汇率信息暂不可用")
         st.session_state.exchange_rate_info = None
