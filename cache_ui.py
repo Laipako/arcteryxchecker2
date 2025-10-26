@@ -16,6 +16,20 @@ def show_cache_management_tab():
     """显示缓存管理标签页"""
     st.subheader("🗑️ 缓存管理")
     
+    # 显示数据库连接信息
+    st.write("**数据库连接状态：**")
+    try:
+        from supabase_client import get_supabase
+        client = get_supabase()
+        if client:
+            st.success("✅ Supabase 连接正常")
+        else:
+            st.error("❌ Supabase 连接失败")
+    except Exception as e:
+        st.error(f"❌ Supabase 连接异常: {str(e)}")
+    
+    st.divider()
+    
     # 获取缓存统计信息
     stats = product_cache.get_cache_statistics()
     

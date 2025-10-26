@@ -1,4 +1,4 @@
-import streamlit as st
+﻿import streamlit as st
 from purchase_plan_manager import (
     get_plans_grouped_by_store,
     calculate_store_total_price,
