@@ -93,6 +93,42 @@ def save_plans(plans):
     保存购买计划到Supabase
     """
     try:
+        user_id = get_user_id()
+        if not user_id:
+            print("用户未登录，无法保存计划")
+            return False
+        
+        supabase = get_supabase()
+        if not supabase:
+            print("Supabase连接失败，仅保存到本地文件")
+            try:
+                with open(PLANS_FILE, 'w', encoding='utf-8') as f:
+                    json.dump(plans, f, ensure_ascii=False, indent=2)
+            except Exception as e:
+                print(f"保存本地备份失败: {e}")
+            return False
+        
+        # 删除该用户的所有旧计划
+        supabase.table('plan').delete().eq('user_id', user_id).execute()
+        
+        # 将新计划保存到Supabase
+        for store_name, products in plans.items():
+            for idx, product_info in enumerate(products, 1):
+                insert_data = {
+                    'user_id': user_id,
+                    'store_name': store_name,
+                    'product_model': product_info.get('product_model'),
+                    'exact_model': product_info.get('exact_model'),
+                    'color': product_info.get('color'),
+                    'size': product_info.get('size'),
+                    'price_krw': product_info.get('price_krw'),
+                    'year_info': product_info.get('year_info'),
+                    'domestic_price_cny': product_info.get('domestic_price_cny'),
+                    'plan_id': product_info.get('plan_id', idx),
+                    'added_at': product_info.get('added_at', datetime.now().isoformat())
+                }
+                supabase.table('plan').insert(insert_data).execute()
+        
         # 同时保存到本地文件作为备份
         try:
             with open(PLANS_FILE, 'w', encoding='utf-8') as f:
