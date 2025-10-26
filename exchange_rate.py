@@ -8,20 +8,8 @@ def get_exchange_rate():
     """
     获取韩元兑人民币汇率（银联优惠汇率接口）
     返回格式：10000 KRW = XX.XX CNY
-    使用小时级缓存
+    每次都从API获取最新数据，不使用缓存
     """
-    # 初始化会话状态中的缓存
-    if "exchange_rate_cache" not in st.session_state:
-        st.session_state.exchange_rate_cache = {}
-    
-    cache = st.session_state.exchange_rate_cache
-    current_time = datetime.now()
-    hour_str = current_time.strftime("%Y%m%d%H")
-    
-    # 检查当前小时的缓存
-    if hour_str in cache and cache[hour_str]:
-        return cache[hour_str]
-    
     try:
         url = "https://marketing.unionpayintl.com/h5Rate/rate/getRateInfoByCountryCode?insCode=101710156&channelCode=&countryCode=410&language=zh&currCode=410"
         response = requests.get(url, timeout=10)
@@ -44,12 +32,11 @@ def get_exchange_rate():
                 final_rate = round(final_rate, 2)
                 
                 # 格式化日期和时间
+                current_time = datetime.now()
                 display_time = current_time.strftime("%Y年%m月%d日 %H:%M")
                 
                 result = f"{display_time}，10000韩元={final_rate}人民币"
                 
-                # 缓存结果（当前小时）
-                cache[hour_str] = result
                 return result
         
         return ""
