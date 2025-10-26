@@ -43,11 +43,13 @@ def get_accurate_exchange_rate():
                 # 获取第一个（levelInd=1）的汇率
                 discount_rate = float(conv_rate_notice[0].get("discountConvRate", 0))
                 
-                # discount_rate已经是实际单位汇率，不需要乘以10000
-                # 例如：0.004963 表示1韩元 ≈ 0.004963人民币
+                # 转换为10000韩元对应的人民币价格
+                # 例如：0.004963表示1韩元 ≈ 0.004963人民币
+                # 10000韩元 ≈ 49.63人民币
+                rate_for_10000 = discount_rate * 10000
                 
                 result = {
-                    "rate": discount_rate,
+                    "rate": rate_for_10000,
                     "source": "准确值",
                     "timestamp": now.isoformat()
                 }
@@ -149,8 +151,8 @@ def get_exchange_rate():
         # 优先尝试获取准确值
         accurate_rate = get_accurate_exchange_rate()
         if accurate_rate:
-            # rate是单位汇率（1韩元 = X人民币），转换为10000韩元的价格
-            display_price = round(accurate_rate['rate'] * 10000, 2)
+            # rate已经是10000韩元对应的人民币价格
+            display_price = accurate_rate['rate']
             display_text = f"10000韩元={display_price}人民币（{accurate_rate['source']}）"
             rate_data = {
                 "rate": accurate_rate["rate"],
@@ -168,8 +170,8 @@ def get_exchange_rate():
         # 降级到推测值
         estimated_rate = get_estimated_exchange_rate()
         if estimated_rate:
-            # rate是单位汇率（1韩元 = X人民币），转换为10000韩元的价格
-            display_price = round(estimated_rate['rate'] * 10000, 2)
+            # rate已经是10000韩元对应的人民币价格
+            display_price = estimated_rate['rate']
             display_text = f"10000韩元={display_price}人民币（{estimated_rate['source']}）"
             rate_data = {
                 "rate": estimated_rate["rate"],

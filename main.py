@@ -689,8 +689,8 @@ def convert_krw_to_cny(krw_amount):
                     try:
                         rate = float(rate_info['rate'])
                         if rate > 0:
-                            # rate是单位汇率：1韩元 = rate人民币
-                            cny_amount = krw_amount * rate
+                            # 10000韩元 = rate人民币，计算krw_amount对应的人民币
+                            cny_amount = (krw_amount / 10000) * rate
                             return round(cny_amount, 2)
                     except (ValueError, TypeError) as e:
                         print(f"session_state中的汇率无效（值类型错误）: {e}")
@@ -708,8 +708,8 @@ def convert_krw_to_cny(krw_amount):
                     if rate > 0:
                         # 立即保存到session_state以供后续使用
                         st.session_state.exchange_rate_info = rate_info
-                        # rate是单位汇率：1韩元 = rate人民币
-                        cny_amount = krw_amount * rate
+                        # 10000韩元 = rate人民币，计算krw_amount对应的人民币
+                        cny_amount = (krw_amount / 10000) * rate
                         return round(cny_amount, 2)
                 except (ValueError, TypeError) as e:
                     print(f"获取的汇率无效（值类型错误）: {e}")
