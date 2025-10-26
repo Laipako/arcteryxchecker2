@@ -6,59 +6,54 @@ import streamlit as st
 
 def get_exchange_rate():
     """
-    获取韩元兑人民币汇率（银联数据）
+    获取韩元兑人民币汇率（银联优惠汇率接口）
     返回格式：10000 KRW = XX.XX CNY
-    使用日期级缓存（同一天只请求一次）
+    使用小时级缓存
     """
     # 初始化会话状态中的缓存
     if "exchange_rate_cache" not in st.session_state:
         st.session_state.exchange_rate_cache = {}
     
     cache = st.session_state.exchange_rate_cache
-    today_str = datetime.now().strftime("%Y%m%d")
+    current_time = datetime.now()
+    hour_str = current_time.strftime("%Y%m%d%H")
     
-    # 检查今天的缓存
-    if today_str in cache and cache[today_str]:
-        return cache[today_str]
+    # 检查当前小时的缓存
+    if hour_str in cache and cache[hour_str]:
+        return cache[hour_str]
     
-    # 获取当前日期和前一天的日期
-    today = datetime.now()
-    yesterday = today - timedelta(days=1)
-
-    date_list = [
-        today.strftime("%Y%m%d"),
-        yesterday.strftime("%Y%m%d")
-    ]
-
-    for date_str in date_list:
-        try:
-            url = f"https://www.unionpayintl.com/upload/jfimg/{date_str}.json"
-            response = requests.get(url, timeout=10)
-            response.raise_for_status()
-
-            data = response.json()
-
-            # ✅ 修正：使用正确的键名 exchangeRateJson
-            for rate in data.get('exchangeRateJson', []):
-                if rate.get('transCur') == 'KRW' and rate.get('baseCur') == 'CNY':
-                    krw_to_cny = float(rate.get('rateData', 0))
-
-                    # 计算优惠汇率
-                    normal_rate = 10000 * krw_to_cny
-                    discount_rate = normal_rate - 0.05
-                    discount_rate = round(discount_rate, 2)
-
-                    # 格式化日期
-                    display_date = datetime.strptime(date_str, "%Y%m%d").strftime("%Y年%m月%d日")
-                    
-                    result = f"{display_date}，10000韩元={discount_rate}人民币"
-                    
-                    # 缓存结果
-                    cache[today_str] = result
-                    return result
-
-        except Exception as e:
-            print(f"汇率获取失败 {date_str}: {e}")
-            continue
-
-    return ""  # 失败时返回空字符串
+    try:
+        url = "https://marketing.unionpayintl.com/h5Rate/rate/getRateInfoByCountryCode?insCode=101710156&channelCode=&countryCode=410&language=zh&currCode=410"
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        
+        data = response.json()
+        
+        # 提取汇率数据
+        if data.get('responseCode') == '00' and data.get('data'):
+            rate_data = data['data'][0]
+            conv_rate_notice = rate_data.get('convRateNotice', [])
+            
+            if conv_rate_notice:
+                # 获取一级优享汇率（第一个）
+                discount_rate_str = conv_rate_notice[0].get('discountConvRate', '0')
+                discount_rate = float(discount_rate_str)
+                
+                # 乘以10000得到最终汇率
+                final_rate = discount_rate * 10000
+                final_rate = round(final_rate, 2)
+                
+                # 格式化日期和时间
+                display_time = current_time.strftime("%Y年%m月%d日 %H:%M")
+                
+                result = f"{display_time}，10000韩元={final_rate}人民币"
+                
+                # 缓存结果（当前小时）
+                cache[hour_str] = result
+                return result
+        
+        return ""
+    
+    except Exception as e:
+        print(f"汇率获取失败: {e}")
+        return ""
