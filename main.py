@@ -503,11 +503,25 @@ def show_product_details():
         st.error("无法获取产品SKU信息")
         return
 
-    # 图片URL生成
-    product_id = st.session_state.selected_product_id
+    # 简化的图片获取逻辑：直接从颜色选项中获取image_chip URL
+    color_options = cached_info.get('color_options', [])
     image_url = None
-    if product_id:
+    
+    try:
+        # 从颜色选项中查找匹配的颜色，获取其image_chip URL
+        for color_option in color_options:
+            if color_option.get('name', '').strip() == st.session_state.selected_color.strip():
+                image_chip = color_option.get('image_chip', '')
+                if image_chip:
+                    image_url = image_chip
+
+    except Exception as e:
+        pass
+    
+    # 备用方案：如果没有image_chip，使用构造URL
+    if not image_url:
         try:
+            product_id = st.session_state.selected_product_id
             formatted_model = format_string(st.session_state.exact_model)
             formatted_color = format_color(st.session_state.selected_color)
             gender = st.session_state.selected_gender  # MALE 或 FEMALE
@@ -517,13 +531,12 @@ def show_product_details():
             else:
                 image_url = f"https://product.arcteryx.co.kr/images/products/{product_id}/{formatted_model}-{formatted_color}.jpg"
         except Exception as e:
-            print(f"图片URL生成失败: {e}")
-            image_url = None
+            pass
 
     st.session_state.product_image_url = image_url
 
     # 使用两列布局：图片在左，信息在右
-    col1, col2 = st.columns([1, 2])
+    col1, col2 = st.columns([1, 2], gap="small")
 
     with col1:
         st.subheader("产品图片")
@@ -536,7 +549,7 @@ def show_product_details():
                 st.error("图片加载失败")
                 st.info("🖼️ 图片暂不可用")
         else:
-            st.info("📷 无产品图片")
+            st.info("无产品图片")
 
     with col2:
         st.subheader("产品信息")
