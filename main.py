@@ -715,18 +715,19 @@ def calculate_discount_rate(korea_price_cny, china_price_cny):
 def convert_krw_to_cny(krw_amount):
     """
     将韩元金额转换为人民币金额
-    复用主页面显示的汇率数据
+    复用主页面显示的汇率数据，如果失效则直接获取
     """
     try:
-        # 从主页面获取汇率信息
+        # 首先尝试从session_state获取汇率信息
         if 'exchange_rate_info' in st.session_state:
             rate_info = st.session_state.exchange_rate_info
             
             # 新格式：字典类型，包含 'rate' 键
             if isinstance(rate_info, dict) and 'rate' in rate_info:
                 rate_per_10000 = float(rate_info['rate'])
-                cny_amount = (krw_amount / 10000) * rate_per_10000
-                return int(cny_amount)  # 取整显示
+                if rate_per_10000 > 0:
+                    cny_amount = (krw_amount / 10000) * rate_per_10000
+                    return int(cny_amount)  # 取整显示
             
             # 旧格式：字符串类型（后向兼容）
             elif isinstance(rate_info, str):
@@ -736,6 +737,15 @@ def convert_krw_to_cny(krw_amount):
                     rate_per_10000 = float(match.group(1))
                     cny_amount = (krw_amount / 10000) * rate_per_10000
                     return int(cny_amount)  # 取整显示
+        
+        # session_state失效时，直接获取汇率
+        from exchange_rate import get_exchange_rate
+        rate_info = get_exchange_rate()
+        if rate_info and 'rate' in rate_info:
+            rate_per_10000 = float(rate_info['rate'])
+            if rate_per_10000 > 0:
+                cny_amount = (krw_amount / 10000) * rate_per_10000
+                return int(cny_amount)  # 取整显示
     except:
         pass
 
