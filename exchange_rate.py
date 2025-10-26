@@ -8,23 +8,9 @@ def get_accurate_exchange_rate():
     """
     从银联优惠汇率接口获取韩元兑人民币准确汇率
     返回格式：{"rate": 49.63, "source": "准确值", "timestamp": "2025-10-25 14:30"}
-    使用30分钟缓存
+    禁止缓存，每次都获取最新汇率
     """
-    # 初始化会话状态中的缓存
-    if "accurate_rate_cache" not in st.session_state:
-        st.session_state.accurate_rate_cache = {
-            "data": None,
-            "timestamp": None
-        }
-    
-    cache = st.session_state.accurate_rate_cache
     now = datetime.now()
-    
-    # 检查缓存是否有效（30分钟内）
-    if cache["data"] is not None and cache["timestamp"] is not None:
-        cache_time = datetime.fromisoformat(cache["timestamp"])
-        if (now - cache_time).total_seconds() < 1800:  # 30分钟 = 1800秒
-            return cache["data"]
     
     # 请求银联API获取准确汇率
     try:
@@ -61,10 +47,6 @@ def get_accurate_exchange_rate():
                     "source": "准确值",
                     "timestamp": now.isoformat()
                 }
-                
-                # 缓存结果
-                cache["data"] = result
-                cache["timestamp"] = now.isoformat()
                 
                 return result
     
