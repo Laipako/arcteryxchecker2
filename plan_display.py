@@ -231,13 +231,26 @@ def display_store_calculation_results(store_name: str, products: list, result):
     
     st.divider()
     
-    # 计算人民币价格
+    # 计算人民币价格，添加调试信息
     cny_price = convert_krw_to_cny(result['final_payment'])
+    
+    # 如果转换失败（返回0），检查汇率信息
+    if cny_price == 0:
+        # 尝试重新获取汇率
+        from exchange_rate import get_exchange_rate
+        rate_info = get_exchange_rate()
+        if rate_info:
+            st.session_state.exchange_rate_info = rate_info
+            # 重新计算
+            cny_price = convert_krw_to_cny(result['final_payment'])
+        else:
+            # 如果汇率仍然获取不到，显示警告
+            st.warning("⚠️ 汇率信息暂不可用，人民币价格无法转换")
     
     # 计算国内总价和折扣率
     total_domestic_price, has_all_domestic_prices = calculate_store_domestic_total(products)
     discount_rate = None
-    if has_all_domestic_prices and total_domestic_price > 0:
+    if has_all_domestic_prices and total_domestic_price > 0 and cny_price > 0:
         discount_rate = int((cny_price / total_domestic_price) * 100)
     
     # 显示计算步骤

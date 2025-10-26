@@ -1468,10 +1468,22 @@ def display_calculation_results(selected_products, result):
 
     # 计算人民币价格
     cny_price = convert_krw_to_cny(result['final_payment'])
+    
+    # 如果转换失败（返回0），检查汇率信息
+    if cny_price == 0:
+        # 尝试重新获取汇率
+        rate_info = get_exchange_rate()
+        if rate_info:
+            st.session_state.exchange_rate_info = rate_info
+            # 重新计算
+            cny_price = convert_krw_to_cny(result['final_payment'])
+        else:
+            # 如果汇率仍然获取不到，显示警告
+            st.warning("⚠️ 汇率信息暂不可用，人民币价格无法转换")
 
     # 计算折扣率
     discount_rate = None
-    if has_all_china_prices and total_china_price > 0:
+    if has_all_china_prices and total_china_price > 0 and cny_price > 0:
         discount_rate = int((cny_price / total_china_price) * 100)
     # 显示计算步骤
     st.write("**详细计算过程:**")
