@@ -137,34 +137,49 @@ def go_back():
 
 def convert_krw_to_cny(krw_amount):
     """
-    将韩元转换为人民币
-    使用实时汇率
+    将韩元金额转换为人民币金额
+    复用主页面显示的汇率数据，如果失效则直接获取
     """
+    # 处理输入为0或None的情况
     if not krw_amount or krw_amount == 0:
         return 0
     
-    # 获取汇率信息
-    rate_info = st.session_state.get('exchange_rate_info')
-    
-    if not rate_info or 'rate' not in rate_info:
-        # 如果session中没有汇率，尝试获取
+    try:
+        # 首先尝试从session_state获取汇率信息
+        if 'exchange_rate_info' in st.session_state:
+            rate_info = st.session_state.exchange_rate_info
+            
+            # 新格式：字典类型，包含 'rate' 键
+            if isinstance(rate_info, dict) and 'rate' in rate_info:
+                rate_per_10000 = float(rate_info['rate'])
+                if rate_per_10000 > 0:
+                    cny_amount = (krw_amount / 10000) * rate_per_10000
+                    return round(cny_amount, 2)  # 返回保留2位小数的浮点数
+            
+            # 旧格式：字符串类型（后向兼容）
+            elif isinstance(rate_info, str):
+                import re
+                match = re.search(r'10000韩元=(\d+\.?\d*)人民币', rate_info)
+                if match:
+                    rate_per_10000 = float(match.group(1))
+                    cny_amount = (krw_amount / 10000) * rate_per_10000
+                    return round(cny_amount, 2)  # 返回保留2位小数的浮点数
+        
+        # session_state失效时，直接获取汇率
         from exchange_rate import get_exchange_rate
         rate_info = get_exchange_rate()
-        if rate_info:
-            st.session_state.exchange_rate_info = rate_info
-        else:
-            return 0
-    
-    try:
-        rate = float(rate_info.get('rate', 0))
-        if rate <= 0:
-            return 0
-        # 10000 韩元 = rate 人民币
-        # krw_amount 韩元 = ? 人民币
-        cny_amount = (krw_amount / 10000) * rate
-        return round(cny_amount, 2)
-    except (TypeError, ValueError):
-        return 0
+        if rate_info and 'rate' in rate_info:
+            rate_per_10000 = float(rate_info['rate'])
+            if rate_per_10000 > 0:
+                cny_amount = (krw_amount / 10000) * rate_per_10000
+                return round(cny_amount, 2)  # 返回保留2位小数的浮点数
+                
+    except Exception as e:
+        print(f"汇率转换错误: {e}")
+        pass
+
+    # 汇率获取失败时返回0（前端会只显示韩元）
+    return 0
 
 # 页面配置
 st.set_page_config(
@@ -749,6 +764,10 @@ def convert_krw_to_cny(krw_amount):
     将韩元金额转换为人民币金额
     复用主页面显示的汇率数据，如果失效则直接获取
     """
+    # 处理输入为0或None的情况
+    if not krw_amount or krw_amount == 0:
+        return 0
+    
     try:
         # 首先尝试从session_state获取汇率信息
         if 'exchange_rate_info' in st.session_state:
@@ -759,7 +778,7 @@ def convert_krw_to_cny(krw_amount):
                 rate_per_10000 = float(rate_info['rate'])
                 if rate_per_10000 > 0:
                     cny_amount = (krw_amount / 10000) * rate_per_10000
-                    return int(cny_amount)  # 取整显示
+                    return round(cny_amount, 2)  # 返回保留2位小数的浮点数
             
             # 旧格式：字符串类型（后向兼容）
             elif isinstance(rate_info, str):
@@ -768,7 +787,7 @@ def convert_krw_to_cny(krw_amount):
                 if match:
                     rate_per_10000 = float(match.group(1))
                     cny_amount = (krw_amount / 10000) * rate_per_10000
-                    return int(cny_amount)  # 取整显示
+                    return round(cny_amount, 2)  # 返回保留2位小数的浮点数
         
         # session_state失效时，直接获取汇率
         from exchange_rate import get_exchange_rate
@@ -777,8 +796,10 @@ def convert_krw_to_cny(krw_amount):
             rate_per_10000 = float(rate_info['rate'])
             if rate_per_10000 > 0:
                 cny_amount = (krw_amount / 10000) * rate_per_10000
-                return int(cny_amount)  # 取整显示
-    except:
+                return round(cny_amount, 2)  # 返回保留2位小数的浮点数
+                
+    except Exception as e:
+        print(f"汇率转换错误: {e}")
         pass
 
     # 汇率获取失败时返回0（前端会只显示韩元）
@@ -1601,12 +1622,19 @@ def main():
 
     # 主标题和汇率信息在同一行
     st.title("始祖鸟查货系统")
-    if rate_info and isinstance(rate_info, dict) and 'display_text' in rate_info:
-        st.session_state.exchange_rate_info = rate_info  # 保存供其他模块使用
-        # 使用醒目的方式显示
-        st.success(f"实时汇率: {rate_info['display_text']}")
+    if rate_info:
+        # 保存汇率信息到session_state（无论是否有display_text）
+        st.session_state.exchange_rate_info = rate_info
+        
+        # 显示汇率信息（优先使用display_text，次之使用rate）
+        if 'display_text' in rate_info:
+            st.success(f"实时汇率: {rate_info['display_text']}")
+        elif 'rate' in rate_info:
+            st.success(f"实时汇率: 10000韩元={rate_info['rate']}人民币（{rate_info.get('source', '准确值')}）")
+        else:
+            st.warning("今日汇率信息格式异常，可能影响人民币换算")
     else:
-        st.warning("今日汇率信息暂不可用")
+        st.warning("⚠️ 今日汇率信息暂不可用，人民币价格可能无法正确转换")
         st.session_state.exchange_rate_info = None
 
     # 移动端自适应CSS
