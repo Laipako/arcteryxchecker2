@@ -1,15 +1,73 @@
 import json
 import os
 from datetime import datetime
+from supabase_client import get_supabase
 
-# 购买计划存储文件路径
+# 购买计划存储文件路径（仅作备份用）
 PLANS_FILE = "plans.json"
+
+def get_user_id():
+    """获取当前用户ID"""
+    try:
+        supabase = get_supabase()
+        if supabase and supabase.auth.get_session():
+            return supabase.auth.get_session().user.id
+    except Exception as e:
+        print(f"获取用户ID失败: {e}")
+    return None
 
 def load_plans():
     """
-    加载所有购买计划
+    从Supabase加载所有购买计划
     返回格式: {store_name: [{product_info}, ...], ...}
     """
+    try:
+        user_id = get_user_id()
+        if not user_id:
+            print("用户未登录，无法加载计划")
+            return {}
+        
+        supabase = get_supabase()
+        if not supabase:
+            print("Supabase连接失败，尝试从本地文件加载")
+            return _load_plans_from_file()
+        
+        # 从Supabase查询用户的所有计划
+        response = supabase.table('plan').select('*').eq('user_id', user_id).execute()
+        
+        if response.data:
+            # 转换Supabase的行数据为原来的嵌套格式
+            plans = {}
+            for row in response.data:
+                store_name = row.get('store_name')
+                if store_name not in plans:
+                    plans[store_name] = []
+                
+                # 构建产品信息
+                product_info = {
+                    'product_model': row.get('product_model'),
+                    'exact_model': row.get('exact_model'),
+                    'color': row.get('color'),
+                    'size': row.get('size'),
+                    'price_krw': row.get('price_krw'),
+                    'year_info': row.get('year_info'),
+                    'domestic_price_cny': row.get('domestic_price_cny'),
+                    'added_at': row.get('added_at'),
+                    'plan_id': row.get('plan_id'),
+                    'id': row.get('id')  # Supabase主键
+                }
+                plans[store_name].append(product_info)
+            
+            return plans
+        else:
+            return {}
+            
+    except Exception as e:
+        print(f"从Supabase加载购买计划失败: {e}，尝试使用本地文件")
+        return _load_plans_from_file()
+
+def _load_plans_from_file():
+    """从本地JSON文件加载计划（备份方案）"""
     if not os.path.exists(PLANS_FILE):
         return {}
     
@@ -18,16 +76,21 @@ def load_plans():
             plans = json.load(f)
             return plans
     except Exception as e:
-        print(f"加载购买计划失败: {e}")
+        print(f"从本地文件加载购买计划失败: {e}")
         return {}
 
 def save_plans(plans):
     """
-    保存购买计划到文件
+    保存购买计划到Supabase
     """
     try:
-        with open(PLANS_FILE, 'w', encoding='utf-8') as f:
-            json.dump(plans, f, ensure_ascii=False, indent=2)
+        # 同时保存到本地文件作为备份
+        try:
+            with open(PLANS_FILE, 'w', encoding='utf-8') as f:
+                json.dump(plans, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            print(f"保存本地备份失败: {e}")
+        
         return True
     except Exception as e:
         print(f"保存购买计划失败: {e}")
@@ -51,44 +114,69 @@ def add_to_plan(store_name, product_info):
     返回: True表示成功，False表示失败
     """
     try:
-        plans = load_plans()
+        user_id = get_user_id()
+        if not user_id:
+            print("用户未登录，无法添加计划")
+            return False
         
-        # 检查产品是否已在任何其他店铺的计划中
+        supabase = get_supabase()
+        if not supabase:
+            print("Supabase连接失败")
+            return False
+        
         product_model = product_info.get('product_model')
         color = product_info.get('color')
         size = product_info.get('size')
         
-        for existing_store, products in plans.items():
-            if existing_store != store_name:  # 只检查其他店铺
-                for item in products:
-                    if (item.get('product_model') == product_model and
-                        item.get('color') == color and
-                        item.get('size') == size):
-                        print(f"产品已存在于{existing_store}的计划中，不能加入其他店铺")
-                        return False
+        # 检查产品是否已在任何其他店铺的计划中
+        existing = supabase.table('plan').select('*').eq('user_id', user_id).neq('store_name', store_name).eq('product_model', product_model).eq('color', color).eq('size', size).execute()
         
-        # 如果店铺不存在，创建新店铺计划
-        if store_name not in plans:
-            plans[store_name] = []
+        if existing.data:
+            print(f"产品已存在于{existing.data[0].get('store_name')}的计划中，不能加入其他店铺")
+            return False
         
-        # 检查产品是否已存在于此店铺（避免重复）
-        for item in plans[store_name]:
-            if (item.get('product_model') == product_model and
-                item.get('color') == color and
-                item.get('size') == size):
-                print(f"产品已存在于{store_name}的计划中")
-                return False
+        # 检查产品是否已存在于此店铺
+        existing_in_store = supabase.table('plan').select('*').eq('user_id', user_id).eq('store_name', store_name).eq('product_model', product_model).eq('color', color).eq('size', size).execute()
         
-        # 添加时间戳和ID
-        product_info['added_at'] = datetime.now().isoformat()
-        product_info['plan_id'] = len(plans[store_name]) + 1
+        if existing_in_store.data:
+            print(f"产品已存在于{store_name}的计划中")
+            return False
         
-        # 添加到店铺计划
-        plans[store_name].append(product_info)
+        # 获取该店铺现有产品数量以设置plan_id
+        store_products = supabase.table('plan').select('plan_id').eq('user_id', user_id).eq('store_name', store_name).execute()
+        plan_id = len(store_products.data) + 1 if store_products.data else 1
         
-        # 保存到文件
-        if save_plans(plans):
+        # 准备要插入的数据
+        insert_data = {
+            'user_id': user_id,
+            'store_name': store_name,
+            'product_model': product_model,
+            'exact_model': product_info.get('exact_model'),
+            'color': color,
+            'size': size,
+            'price_krw': product_info.get('price_krw'),
+            'year_info': product_info.get('year_info'),
+            'domestic_price_cny': product_info.get('domestic_price_cny'),
+            'plan_id': plan_id,
+            'added_at': datetime.now().isoformat()
+        }
+        
+        # 插入到Supabase
+        response = supabase.table('plan').insert(insert_data).execute()
+        
+        if response.data:
             print(f"成功将产品添加到{store_name}的计划中")
+            
+            # 同时更新本地缓存
+            plans = load_plans()
+            if store_name not in plans:
+                plans[store_name] = []
+            product_info['added_at'] = insert_data['added_at']
+            product_info['plan_id'] = plan_id
+            product_info['id'] = response.data[0].get('id')
+            plans[store_name].append(product_info)
+            save_plans(plans)
+            
             return True
         else:
             return False
@@ -106,14 +194,26 @@ def check_product_in_plan(product_model, color, size):
         - store_name: 如果在计划中，返回店铺名称；否则为None
     """
     try:
-        plans = load_plans()
+        user_id = get_user_id()
+        if not user_id:
+            return False, None
         
-        for store_name, products in plans.items():
-            for product in products:
-                if (product.get('product_model') == product_model and
-                    product.get('color') == color and
-                    product.get('size') == size):
-                    return True, store_name
+        supabase = get_supabase()
+        if not supabase:
+            # 回退到本地检查
+            plans = _load_plans_from_file()
+            for store_name, products in plans.items():
+                for product in products:
+                    if (product.get('product_model') == product_model and
+                        product.get('color') == color and
+                        product.get('size') == size):
+                        return True, store_name
+            return False, None
+        
+        response = supabase.table('plan').select('store_name').eq('user_id', user_id).eq('product_model', product_model).eq('color', color).eq('size', size).limit(1).execute()
+        
+        if response.data:
+            return True, response.data[0].get('store_name')
         
         return False, None
         
@@ -128,30 +228,48 @@ def remove_from_plan(store_name, product_model, color, size):
     返回: True表示成功，False表示失败
     """
     try:
-        plans = load_plans()
-        
-        if store_name not in plans:
+        user_id = get_user_id()
+        if not user_id:
+            print("用户未登录")
             return False
         
-        # 找到并删除产品
-        for i, product in enumerate(plans[store_name]):
-            if (product.get('product_model') == product_model and
-                product.get('color') == color and
-                product.get('size') == size):
-                plans[store_name].pop(i)
+        supabase = get_supabase()
+        if not supabase:
+            print("Supabase连接失败")
+            return False
+        
+        # 查询要删除的产品
+        response = supabase.table('plan').select('id').eq('user_id', user_id).eq('store_name', store_name).eq('product_model', product_model).eq('color', color).eq('size', size).execute()
+        
+        if not response.data:
+            return False
+        
+        product_id = response.data[0].get('id')
+        
+        # 从Supabase删除
+        delete_response = supabase.table('plan').delete().eq('id', product_id).execute()
+        
+        if delete_response:
+            print(f"成功从{store_name}的计划中删除产品")
+            
+            # 同时更新本地缓存
+            plans = load_plans()
+            if store_name in plans:
+                for i, product in enumerate(plans[store_name]):
+                    if (product.get('product_model') == product_model and
+                        product.get('color') == color and
+                        product.get('size') == size):
+                        plans[store_name].pop(i)
+                        break
                 
-                # 如果店铺计划为空，删除店铺
                 if not plans[store_name]:
                     del plans[store_name]
                 
-                # 保存到文件
-                if save_plans(plans):
-                    print(f"成功从{store_name}的计划中删除产品")
-                    return True
-                else:
-                    return False
-        
-        return False
+                save_plans(plans)
+            
+            return True
+        else:
+            return False
         
     except Exception as e:
         print(f"删除计划产品失败: {e}")
@@ -193,11 +311,27 @@ def clear_plan(store_name):
     返回: True表示成功，False表示失败
     """
     try:
-        plans = load_plans()
+        user_id = get_user_id()
+        if not user_id:
+            return False
         
-        if store_name in plans:
-            del plans[store_name]
-            return save_plans(plans)
+        supabase = get_supabase()
+        if not supabase:
+            return False
+        
+        # 从Supabase删除整个店铺的记录
+        response = supabase.table('plan').delete().eq('user_id', user_id).eq('store_name', store_name).execute()
+        
+        if response:
+            print(f"成功清空{store_name}的计划")
+            
+            # 同时更新本地缓存
+            plans = load_plans()
+            if store_name in plans:
+                del plans[store_name]
+                save_plans(plans)
+            
+            return True
         
         return False
         
@@ -280,38 +414,43 @@ def remove_product_from_plan(product_id):
     从购买计划中删除指定产品（通过ID）
     
     参数:
-        product_id: 产品ID (格式: "store_name_idx_timestamp")
+        product_id: 产品ID (Supabase主键或格式: "store_name_idx_timestamp")
     
     返回: True表示成功，False表示失败
     """
     try:
-        plans = load_plans()
-        
-        # 解析产品ID获取店铺名称
-        id_parts = str(product_id).rsplit('_', 1)
-        if len(id_parts) < 2:
+        user_id = get_user_id()
+        if not user_id:
             return False
         
-        store_name = id_parts[0].rsplit('_', 1)[0] if '_' in id_parts[0] else None
+        supabase = get_supabase()
+        if not supabase:
+            return False
         
-        # 查找并删除产品
+        # 尝试直接用ID删除（如果是Supabase主键）
+        try:
+            delete_response = supabase.table('plan').delete().eq('id', product_id).eq('user_id', user_id).execute()
+            if delete_response:
+                print(f"成功删除产品: {product_id}")
+                return True
+        except:
+            pass
+        
+        # 如果直接ID删除失败，尝试从本地缓存查找
+        plans = load_plans()
+        
         for store in plans.keys():
             for idx, product in enumerate(plans[store]):
-                # 用多种方式匹配ID以确保兼容性
                 if (product.get('id') == product_id or 
                     f"{store}_{idx}_{product.get('added_at', '')}" == product_id):
                     plans[store].pop(idx)
                     
-                    # 如果店铺计划为空，删除店铺
                     if not plans[store]:
                         del plans[store]
                     
-                    # 保存到文件
-                    if save_plans(plans):
-                        print(f"成功删除产品: {product_id}")
-                        return True
-                    else:
-                        return False
+                    save_plans(plans)
+                    print(f"成功删除产品: {product_id}")
+                    return True
         
         print(f"未找到产品: {product_id}")
         return False
@@ -330,15 +469,27 @@ def remove_store_from_plan(store_name):
     返回: True表示成功，False表示失败
     """
     try:
-        plans = load_plans()
+        user_id = get_user_id()
+        if not user_id:
+            return False
         
-        if store_name in plans:
-            del plans[store_name]
-            if save_plans(plans):
-                print(f"成功删除店铺: {store_name}")
-                return True
-            else:
-                return False
+        supabase = get_supabase()
+        if not supabase:
+            return False
+        
+        # 从Supabase删除
+        response = supabase.table('plan').delete().eq('user_id', user_id).eq('store_name', store_name).execute()
+        
+        if response:
+            print(f"成功删除店铺: {store_name}")
+            
+            # 同时更新本地缓存
+            plans = load_plans()
+            if store_name in plans:
+                del plans[store_name]
+                save_plans(plans)
+            
+            return True
         else:
             print(f"店铺不存在: {store_name}")
             return False
