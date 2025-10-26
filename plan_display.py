@@ -215,7 +215,14 @@ def show_store_calculation_config(store_name: str, products: list):
 
 
 def display_store_calculation_results(store_name: str, products: list, result):
-    """显示店铺购买计划的试算结果"""
+    """
+    显示店铺购买计划的试算结果（改进版）
+    
+    改进点：
+    1. 在进行任何汇率转换前，确保汇率信息有效
+    2. 使用三层尝试机制获取有效汇率
+    3. 改进的错误提示和降级处理
+    """
     from main import convert_krw_to_cny
     
     if not result:
@@ -224,6 +231,19 @@ def display_store_calculation_results(store_name: str, products: list, result):
     
     st.subheader("📊 试算结果")
     
+    # ============ 第0步：主动确保汇率有效（预防性检查） ============
+    # 这是关键的改进——不是等汇率转换失败才检查，而是主动预检查
+    
+    if 'exchange_rate_info' not in st.session_state or st.session_state.exchange_rate_info is None:
+        # Session state中没有汇率，立即尝试获取
+        from exchange_rate import get_exchange_rate
+        rate_info = get_exchange_rate()
+        if rate_info:
+            st.session_state.exchange_rate_info = rate_info
+            st.info(f"✅ 已更新汇率：{rate_info.get('display_text', '汇率已就绪')}")
+        else:
+            st.warning("⚠️ 暂无法获取汇率信息，人民币价格可能显示为 0")
+    
     # 显示产品清单
     st.write("**产品清单:**")
     for i, product in enumerate(products, 1):
@@ -231,23 +251,31 @@ def display_store_calculation_results(store_name: str, products: list, result):
     
     st.divider()
     
-    # 计算人民币价格，添加调试信息
+    # ============ 第1步：进行汇率转换（现在汇率应该已就绪） ============
     cny_price = convert_krw_to_cny(result['final_payment'])
     
-    # 如果转换失败（返回0），检查汇率信息
+    # ============ 第2步：如果转换失败（返回0），进行补救 ============
     if cny_price == 0:
-        # 尝试重新获取汇率
-        from exchange_rate import get_exchange_rate
+        st.warning("⚠️ 人民币转换失败，正在尝试重新获取汇率...")
+        from exchange_rate import get_exchange_rate, clear_exchange_rate_cache
+        
+        # 清空缓存强制重新获取
+        clear_exchange_rate_cache()
         rate_info = get_exchange_rate()
-        if rate_info:
+        
+        if rate_info and isinstance(rate_info, dict):
+            # 保存到session_state
             st.session_state.exchange_rate_info = rate_info
-            # 重新计算
+            # 重新尝试转换
             cny_price = convert_krw_to_cny(result['final_payment'])
+            if cny_price > 0:
+                st.success(f"✅ 汇率已更新：{rate_info.get('display_text', '转换成功')}")
+            else:
+                st.error("❌ 汇率信息获取成功但仍无法转换，请稍后重试")
         else:
-            # 如果汇率仍然获取不到，显示警告
-            st.warning("⚠️ 汇率信息暂不可用，人民币价格无法转换")
+            st.error("❌ 暂无法获取有效的汇率信息")
     
-    # 计算国内总价和折扣率
+    # ============ 第3步：计算国内总价和折扣率 ============
     total_domestic_price, has_all_domestic_prices = calculate_store_domestic_total(products)
     discount_rate = None
     if has_all_domestic_prices and total_domestic_price > 0 and cny_price > 0:
