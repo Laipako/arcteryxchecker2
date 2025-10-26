@@ -118,14 +118,14 @@ def show_product_query_tab():
     # 新增：性别选择控件
     gender = st.radio(
         "选择性别",
-        ["男款", "女款"],
+        ["男款", "女款", "背包"],
         index=0,  # 默认选择男款
         key="gender_select",
         horizontal=True  # 水平排列
     )
 
     # 将中文转换为API参数
-    gender_map = {"男款": "MALE", "女款": "FEMALE"}
+    gender_map = {"男款": "MALE", "女款": "FEMALE", "背包": "BACKPACK"}
     selected_gender = gender_map[gender]
     if st.button("搜索产品", key="search_btn"):
         if not product_model.strip():
@@ -176,7 +176,7 @@ def show_product_selection():
     st.subheader("找到以下产品，请选择：")
 
     # 优化：使用更清晰的变量名
-    gender_display = {"MALE": "男款", "FEMALE": "女款"}
+    gender_display = {"MALE": "男款", "FEMALE": "女款", "BACKPACK": "背包"}
     current_gender = gender_display.get(st.session_state.selected_gender, "男款")
 
     # 优化：使用更醒目的方式显示搜索条件
