@@ -43,12 +43,11 @@ def get_accurate_exchange_rate():
                 # 获取第一个（levelInd=1）的汇率
                 discount_rate = float(conv_rate_notice[0].get("discountConvRate", 0))
                 
-                # 乘以10000得到显示值
-                display_rate = discount_rate * 10000
-                display_rate = round(display_rate, 2)
+                # discount_rate已经是实际单位汇率，不需要乘以10000
+                # 例如：0.004963 表示1韩元 ≈ 0.004963人民币
                 
                 result = {
-                    "rate": display_rate,
+                    "rate": discount_rate,
                     "source": "准确值",
                     "timestamp": now.isoformat()
                 }
@@ -89,10 +88,10 @@ def get_estimated_exchange_rate():
                 if rate.get('transCur') == 'KRW' and rate.get('baseCur') == 'CNY':
                     krw_to_cny = float(rate.get('rateData', 0))
 
-                    # 计算推测汇率（原逻辑：减去0.05的推导）
-                    normal_rate = 10000 * krw_to_cny
-                    discount_rate = normal_rate - 0.05
-                    discount_rate = round(discount_rate, 2)
+                    # krw_to_cny是1韩元兑人民币的汇率
+                    # 计算推测汇率（乘以0.99作为优惠）
+                    discount_rate = krw_to_cny * 0.99
+                    discount_rate = round(discount_rate, 6)
 
                     # 格式化日期
                     display_date = datetime.strptime(date_str, "%Y%m%d").strftime("%Y年%m月%d日")
@@ -150,7 +149,9 @@ def get_exchange_rate():
         # 优先尝试获取准确值
         accurate_rate = get_accurate_exchange_rate()
         if accurate_rate:
-            display_text = f"10000韩元={accurate_rate['rate']}人民币（{accurate_rate['source']}）"
+            # rate是单位汇率（1韩元 = X人民币），转换为10000韩元的价格
+            display_price = round(accurate_rate['rate'] * 10000, 2)
+            display_text = f"10000韩元={display_price}人民币（{accurate_rate['source']}）"
             rate_data = {
                 "rate": accurate_rate["rate"],
                 "source": accurate_rate["source"],
@@ -167,7 +168,9 @@ def get_exchange_rate():
         # 降级到推测值
         estimated_rate = get_estimated_exchange_rate()
         if estimated_rate:
-            display_text = f"10000韩元={estimated_rate['rate']}人民币（{estimated_rate['source']}）"
+            # rate是单位汇率（1韩元 = X人民币），转换为10000韩元的价格
+            display_price = round(estimated_rate['rate'] * 10000, 2)
+            display_text = f"10000韩元={display_price}人民币（{estimated_rate['source']}）"
             rate_data = {
                 "rate": estimated_rate["rate"],
                 "source": estimated_rate["source"],
