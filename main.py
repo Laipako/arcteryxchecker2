@@ -30,6 +30,7 @@ from product_detail import extract_product_details, get_product_variants
 from purchase_plan_manager import add_to_plan, check_product_in_plan, load_plans
 from plan_display import show_purchase_plan_tab
 from cache_ui import show_cache_management_tab
+from calculation_utils import calculate_detailed_price, convert_krw_to_cny, calculate_tax_refund
 def format_string(s):
     """格式化字符串用于URL构造"""
     if not s:

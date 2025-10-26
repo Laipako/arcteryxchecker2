@@ -6,6 +6,7 @@ from purchase_plan_manager import (
     remove_store_from_plan,
     calculate_store_domestic_total
 )
+from calculation_utils import calculate_detailed_price, convert_krw_to_cny
 
 
 def show_purchase_plan_tab():
@@ -179,7 +180,6 @@ def show_store_calculation_config(store_name: str, products: list):
                 st.warning("请至少选择一个优惠项目")
             else:
                 # 计算最终结果
-                from main import calculate_detailed_price
                 result = calculate_detailed_price(total_krw, selected_discounts)
                 st.session_state.plan_calculation_result[store_name] = result
                 st.session_state.show_plan_calculation_config[store_name] = False
@@ -193,8 +193,6 @@ def show_store_calculation_config(store_name: str, products: list):
 
 def display_store_calculation_results(store_name: str, products: list, result):
     """显示店铺购买计划的试算结果"""
-    from main import convert_krw_to_cny
-    
     if not result:
         st.error("试算失败，请重试")
         return
