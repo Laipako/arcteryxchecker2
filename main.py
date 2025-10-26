@@ -727,13 +727,6 @@ def convert_krw_to_cny(krw_amount):
 
 def show_favorites_tab():
     """显示收藏产品标签页"""
-    # ============ 主动初始化汇率信息 ============
-    if "exchange_rate_info" not in st.session_state:
-        from exchange_rate import get_exchange_rate
-        rate_info = get_exchange_rate()
-        if rate_info:
-            st.session_state.exchange_rate_info = rate_info
-    
     # 数据备份机制
     if "favorites_backup" not in st.session_state:
         st.session_state.favorites_backup = None
