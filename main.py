@@ -221,7 +221,6 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-
 def display_product_image(image_url, alt_text="产品图片"):
     """显示产品图片（自适应尺寸，无放大功能）"""
     # 占位图URL（使用Streamlit内置的占位图）

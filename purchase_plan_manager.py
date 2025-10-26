@@ -2,6 +2,7 @@ import json
 import os
 from datetime import datetime
 from supabase_client import get_supabase
+import streamlit as st
 
 # 购买计划存储文件路径（仅作备份用）
 PLANS_FILE = "plans.json"
@@ -9,12 +10,20 @@ PLANS_FILE = "plans.json"
 def get_user_id():
     """获取当前用户ID"""
     try:
+        # 首先检查临时用户ID（用于开发/测试）
+        if "temp_user_id" in st.session_state and st.session_state.temp_user_id:
+            return st.session_state.temp_user_id
+        
+        # 然后检查Supabase会话
         supabase = get_supabase()
         if supabase and supabase.auth.get_session():
             return supabase.auth.get_session().user.id
+        
+        # 如果都没有，返回默认用户ID
+        return "default_user"
     except Exception as e:
         print(f"获取用户ID失败: {e}")
-    return None
+        return "default_user"  # 降级到默认用户ID
 
 def load_plans():
     """
