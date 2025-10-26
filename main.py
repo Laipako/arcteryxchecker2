@@ -134,6 +134,38 @@ def go_back():
     if len(st.session_state.step_history) > 1:
         st.session_state.step_history.pop()
         st.rerun()
+
+def convert_krw_to_cny(krw_amount):
+    """
+    将韩元转换为人民币
+    使用实时汇率
+    """
+    if not krw_amount or krw_amount == 0:
+        return 0
+    
+    # 获取汇率信息
+    rate_info = st.session_state.get('exchange_rate_info')
+    
+    if not rate_info or 'rate' not in rate_info:
+        # 如果session中没有汇率，尝试获取
+        from exchange_rate import get_exchange_rate
+        rate_info = get_exchange_rate()
+        if rate_info:
+            st.session_state.exchange_rate_info = rate_info
+        else:
+            return 0
+    
+    try:
+        rate = float(rate_info.get('rate', 0))
+        if rate <= 0:
+            return 0
+        # 10000 韩元 = rate 人民币
+        # krw_amount 韩元 = ? 人民币
+        cny_amount = (krw_amount / 10000) * rate
+        return round(cny_amount, 2)
+    except (TypeError, ValueError):
+        return 0
+
 # 页面配置
 st.set_page_config(
     page_title="始祖鸟查货系统",
