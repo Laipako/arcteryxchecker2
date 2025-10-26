@@ -514,7 +514,7 @@ def show_product_details():
                 image_chip = color_option.get('image_chip', '')
                 if image_chip:
                     image_url = image_chip
-
+                    break
     except Exception as e:
         pass
     
