@@ -19,6 +19,7 @@ from inventory_check import (
     STORE_REGION_MAPPING
 )
 import re
+import hashlib
 # 新增filter_utils的导入
 from filter_utils import apply_filters_and_sort, convert_to_excel
 from exchange_rate import get_exchange_rate  # 新增导入
@@ -351,7 +352,7 @@ def show_color_selection():
     color_names = [color["name"] for color in color_options]
 
     # 5. 创建两列布局：左侧radio选择，右侧色块显示
-    col_left, col_right = st.columns([1, 6])
+    col_left, col_right = st.columns([1, 6], gap="small")
 
     with col_left:
         # 创建radio控件（独立于循环之外）
@@ -377,18 +378,63 @@ def show_color_selection():
             """,
             unsafe_allow_html=True
         )
+        
+        # 检查是否有任何颜色有hex_list
+        any_has_hex = any(color.get('hex_list', []) for color in color_options)
+        
         # 为每个颜色显示色块（在循环中）
         for color in color_options:
-            # 获取颜色HEX值
-            hex_color = color.get('hex', '#CCCCCC')
+            # 获取颜色HEX列表
+            hex_list = color.get('hex_list', [])
+            image_chip = color.get('image_chip', '')
+            color_name = color.get('name', '未知')
+            
+            # 确保hex_list是列表
+            if not isinstance(hex_list, list):
+                hex_list = []
+            
+            print(f"[DEBUG RENDER] 颜色: {color_name}, hex_list: {hex_list}, len: {len(hex_list)}")
+            
+            # 根据HEX值数量生成不同的背景样式
+            # 优先级: 混合色(hex>=2) > 单色(hex=1) > 图片 > 默认
+            if len(hex_list) >= 2:
+                # 双色或多色：左右分块显示（不是渐变）
+                hex1 = hex_list[0]
+                hex2 = hex_list[1]
+                background_style = "display: flex; height: 24px;"
+                inner_html = f"""<div style="flex: 1; background-color: {hex1};"></div><div style="flex: 1; background-color: {hex2};"></div>"""
+                print(f"  => 使用分块: {hex1} | {hex2} (HEX数量: {len(hex_list)})")
+            elif len(hex_list) == 1:
+                # 纯色：显示单一颜色
+                background_style = f"background-color: {hex_list[0]};"
+                inner_html = ""
+                print(f"  => 使用单色: {background_style}")
+            elif image_chip:
+                # 没有HEX值但有图片：显示图片作为色块
+                background_style = f"background-image: url('{image_chip}'); background-size: cover; background-position: center;"
+                inner_html = ""
+                print(f"  => 使用图片")
+            else:
+                # 降级方案：如果没有任何颜色有hex_list，使用颜色名称的哈希值生成随机颜色
+                # 这是为了在完全没有数据时仍然能显示某种颜色块
+                if not any_has_hex:
+                    color_hash = hashlib.md5(color_name.encode()).hexdigest()
+                    hue = int(color_hash[:6], 16) % 360
+                    background_style = f"background-color: hsl({hue}, 70%, 60%);"
+                    inner_html = ""
+                    print(f"  => 使用随机颜色（生成）")
+                else:
+                    background_style = "background-color: #CCCCCC;"
+                    inner_html = ""
+                    print(f"  => 使用默认灰色")
 
-            # 显示色块和颜色名称（紧凑布局）
-            st.markdown(f"""
-                <div style="display: flex; align-items: center; margin: 0.5px 0; padding: 1px 0;">
-                    <div style="width: 24px; height: 24px; background-color: {hex_color}; 
-                             border: 0.1px solid #ddd; border-radius: 4px; flex-shrink: 0;"></div>
-                </div>
-                """, unsafe_allow_html=True)
+            # 显示色块
+            if inner_html:
+                # 多色分块显示
+                st.markdown(f'<div style="display: flex; align-items: center; margin: 0.5px 0; padding: 1px 0;"><div style="{background_style} border: 0.5px solid #ddd; border-radius: 4px; flex-shrink: 0; width: 24px;">{inner_html}</div></div>', unsafe_allow_html=True)
+            else:
+                # 单色或其他显示
+                st.markdown(f'<div style="display: flex; align-items: center; margin: 0.5px 0; padding: 1px 0;"><div style="width: 24px; height: 24px; {background_style} border: 0.5px solid #ddd; border-radius: 4px; flex-shrink: 0;"></div></div>', unsafe_allow_html=True)
 
     # 6. 确认按钮
     if st.button("确认颜色", key="confirm_color"):
