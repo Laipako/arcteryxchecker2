@@ -16,6 +16,13 @@ def show_purchase_plan_tab():
     if "plan_refreshed" not in st.session_state:
         st.session_state.plan_refreshed = False
     
+    # ============ 主动初始化汇率信息 ============
+    if "exchange_rate_info" not in st.session_state:
+        from exchange_rate import get_exchange_rate
+        rate_info = get_exchange_rate()
+        if rate_info:
+            st.session_state.exchange_rate_info = rate_info
+    
     # 初始化试算相关状态
     if "show_plan_calculation_config" not in st.session_state:
         st.session_state.show_plan_calculation_config = {}
