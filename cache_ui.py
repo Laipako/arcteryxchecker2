@@ -20,7 +20,7 @@ def show_cache_management_tab():
     stats = product_cache.get_cache_statistics()
     
     # 统计卡片
-    col1, col2, col3, col4 = st.columns(4, gap="small")
+    col1, col2, col3, col4 = st.columns(4)
     
     with col1:
         st.metric("缓存项数", stats['count'], "项")
@@ -65,7 +65,7 @@ def show_cache_management_tab():
     st.divider()
     
     # 清除缓存按钮
-    col1, col2, col3 = st.columns(3, gap="small")
+    col1, col2, col3 = st.columns(3)
     
     with col1:
         if st.button("🧹 清除过期缓存", use_container_width=True):

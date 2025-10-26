@@ -1,21 +1,11 @@
 import streamlit as st
-
-try:
-    from purchase_plan_manager import (
-        get_plans_grouped_by_store,
-        calculate_store_total_price,
-        remove_product_from_plan,
-        remove_store_from_plan,
-        calculate_store_domestic_total
-    )
-except Exception as e:
-    print(f"⚠️ 导入purchase_plan_manager失败: {e}")
-    # 提供备用空函数
-    def get_plans_grouped_by_store(): return {}
-    def calculate_store_total_price(products): return 0
-    def remove_product_from_plan(plan_id): return False
-    def remove_store_from_plan(store_name): return False
-    def calculate_store_domestic_total(products): return (0, False)
+from purchase_plan_manager import (
+    get_plans_grouped_by_store,
+    calculate_store_total_price,
+    remove_product_from_plan,
+    remove_store_from_plan,
+    calculate_store_domestic_total
+)
 
 
 def show_purchase_plan_tab():
@@ -51,7 +41,7 @@ def show_purchase_plan_tab():
         with st.container(border=True):
             # 显示每个产品
             for idx, product in enumerate(products):
-                col1, col2, col3, col4 = st.columns([3, 1, 0.8, 0.8], gap="small")
+                col1, col2, col3, col4 = st.columns([3, 1, 0.8, 0.8])
                 
                 with col1:
                     # 产品信息
@@ -65,7 +55,7 @@ def show_purchase_plan_tab():
                 
                 with col3:
                     # 删除按钮
-                    if st.button("删除", key=f"delete_product_{product['id']}", help="删除该产品"):
+                    if st.button("🗑️", key=f"delete_product_{product['id']}", help="删除该产品"):
                         if remove_product_from_plan(product['id']):
                             st.success("已删除")
                             st.rerun()
@@ -77,7 +67,7 @@ def show_purchase_plan_tab():
             st.divider()
             
             # 税前总价
-            col1, col2, col3 = st.columns([3, 1, 0.8], gap="small")
+            col1, col2, col3 = st.columns([3, 1, 0.8])
             with col1:
                 st.write("**税前总价**")
             with col2:
@@ -86,11 +76,11 @@ def show_purchase_plan_tab():
                 st.empty()
         
         # 删除店铺和试算按钮区域
-        col1, col2, col3, col4 = st.columns([3, 1, 1, 0.8], gap="small")
+        col1, col2, col3, col4 = st.columns([3, 1, 1, 0.8])
         
         with col2:
             # 试算按钮
-            if st.button("试算", key=f"calc_plan_{store_name}"):
+            if st.button("💰 试算", key=f"calc_plan_{store_name}"):
                 st.session_state.show_plan_calculation_config[store_name] = True
                 st.session_state.plan_calculation_result[store_name] = None
                 st.rerun()
@@ -134,7 +124,7 @@ def show_purchase_plan_tab():
             with st.expander(f"💰 {store_name} 试算结果", expanded=True):
                 col_close, _ = st.columns([1, 3])
                 with col_close:
-                    if st.button(f"关闭试算", key=f"close_calc_{store_name}"):
+                    if st.button(f"✕ 关闭试算", key=f"close_calc_{store_name}"):
                         st.session_state.plan_calculation_result[store_name] = None
                         st.rerun()
                 
@@ -184,7 +174,7 @@ def show_store_calculation_config(store_name: str, products: list):
     # 一键试算按钮
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("开始试算", key=f"calculate_plan_{store_name}"):
+        if st.button("🚀 开始试算", key=f"calculate_plan_{store_name}"):
             if not selected_discounts:
                 st.warning("请至少选择一个优惠项目")
             else:
@@ -196,7 +186,7 @@ def show_store_calculation_config(store_name: str, products: list):
                 st.rerun()
     
     with col2:
-        if st.button("返回购买计划", key=f"back_to_plan_{store_name}"):
+        if st.button("← 返回购买计划", key=f"back_to_plan_{store_name}"):
             st.session_state.show_plan_calculation_config[store_name] = False
             st.rerun()
 
